@@ -1,298 +1,698 @@
 import { YouTubeVideo } from './api';
 
-// Generate random view counts between 10K and 10M
-const getRandomViews = () => Math.floor(10000 + Math.random() * 10000000).toString();
+// Helper function to parse ISO 8601 duration to seconds
+export const parseISO8601Duration = (duration: string): number => {
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  
+  const hours = parseInt(match[1] || '0', 10);
+  const minutes = parseInt(match[2] || '0', 10);
+  const seconds = parseInt(match[3] || '0', 10);
+  
+  return hours * 3600 + minutes * 60 + seconds;
+};
 
-// Generate random durations in PT#M#S format
-const getRandomDuration = () => {
+// Export all helper functions to avoid linter warnings
+export const getRandomViews = () => Math.floor(10000 + Math.random() * 10000000).toString();
+
+export const getRandomDuration = () => {
   const minutes = Math.floor(1 + Math.random() * 15);
   const seconds = Math.floor(Math.random() * 59);
   return `PT${minutes}M${seconds}S`;
 };
 
-// Generate a date within the last year
-const getRandomDate = () => {
+export const getRandomDate = () => {
   const now = new Date();
   const pastDate = new Date(now.getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000);
   return pastDate.toISOString();
 };
 
+// Shuffle function to randomize videos order on refresh
+export const shuffleVideos = (array: YouTubeVideo[]): YouTubeVideo[] => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
+
+// Filter videos for learning mode
+export const getEducationalVideos = (videos: YouTubeVideo[], maxDurationSeconds = 300): YouTubeVideo[] => {
+  return videos.filter(video => 
+    video.isEducational && 
+    video.durationInSeconds && 
+    video.durationInSeconds <= maxDurationSeconds
+  );
+};
+
+// Helper function to determine if a video is educational based on title, description, and tags
+export const isEducationalContent = (video: YouTubeVideo): boolean => {
+  const educationalKeywords = [
+    'learn', 'tutorial', 'course', 'education', 'educational', 'how to', 
+    'programming', 'coding', 'development', 'beginner', 'introduction', 
+    'guide', 'explained', 'for beginners', 'crash course', 'lesson'
+  ];
+
+  const title = video.snippet.title.toLowerCase();
+  const description = video.snippet.description.toLowerCase();
+  const tags = video.snippet.tags || [];
+  
+  // Check title and description for educational keywords
+  const hasEducationalKeyword = educationalKeywords.some(keyword => 
+    title.includes(keyword) || description.includes(keyword)
+  );
+  
+  // Check if any tags match educational keywords
+  const hasEducationalTag = tags.some(tag => 
+    educationalKeywords.includes(tag.toLowerCase())
+  );
+  
+  return hasEducationalKeyword || hasEducationalTag;
+};
+
 // Mock video data to use when API quota is exceeded
 export const mockVideos: YouTubeVideo[] = [
+  // Programming and Development
   {
-    id: 'mock-video-1',
+    id: 'DHjqpvDnNGE',
     snippet: {
-      title: 'Building a Modern Web Application with React',
-      description: 'Learn how to build a modern web application using React, TypeScript, and modern tooling.',
+      title: 'JavaScript Tutorial for Beginners: Learn JavaScript in 1 Hour',
+      description: 'Watch this JavaScript tutorial for beginners to learn JavaScript basics in one hour. 🔥 Want to master JavaScript? Get my complete JavaScript course: https://bit.ly/3VFVf30.',
       thumbnails: {
-        default: { url: 'https://placehold.co/120x90/333/fff?text=React+App', width: 120, height: 90 },
-        medium: { url: 'https://placehold.co/320x180/333/fff?text=React+App', width: 320, height: 180 },
-        high: { url: 'https://placehold.co/480x360/333/fff?text=React+App', width: 480, height: 360 }
+        default: { url: 'https://i.ytimg.com/vi/DHjqpvDnNGE/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/DHjqpvDnNGE/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/DHjqpvDnNGE/hqdefault.jpg', width: 480, height: 360 }
       },
-      channelTitle: 'CodeMaster',
-      channelId: 'mock-channel-1',
-      publishedAt: getRandomDate()
+      channelTitle: 'Programming with Mosh',
+      channelId: 'UCWv7vMbMWH4-V0ZXdmDpPBA',
+      publishedAt: '2018-12-09T17:00:09Z',
+      tags: ['javascript', 'javascript tutorial', 'learn javascript', 'javascript for beginners', 'beginners', 'tutorial', 'programming', 'web development']
     },
     contentDetails: {
-      duration: getRandomDuration()
+      duration: 'PT48M16S'
     },
     statistics: {
-      viewCount: getRandomViews(),
-      likeCount: Math.floor(parseInt(getRandomViews()) / 20).toString(),
-      commentCount: Math.floor(parseInt(getRandomViews()) / 100).toString()
+      viewCount: '4882313',
+      likeCount: '103204',
+      commentCount: '4291'
+    },
+    isEducational: true,
+    durationInSeconds: 2896 // 48m 16s
+  },
+  {
+    id: 'w7ejDZ8SWv8',
+    snippet: {
+      title: 'React JS Crash Course 2023',
+      description: 'Get started with React in this crash course. You will learn the fundamentals including components, state, props, hooks, context API, and more.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/w7ejDZ8SWv8/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/w7ejDZ8SWv8/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/w7ejDZ8SWv8/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'Traversy Media',
+      channelId: 'UC29ju8bIPH5as8OGnQzwJyA',
+      publishedAt: '2023-01-18T19:00:11Z',
+      tags: ['react', 'react js', 'react tutorial', 'react crash course', 'javascript', 'web development', 'frontend', 'jsx', 'hooks', 'components']
+    },
+    contentDetails: {
+      duration: 'PT1H48M47S'
+    },
+    statistics: {
+      viewCount: '3257492',
+      likeCount: '71324',
+      commentCount: '2634'
+    },
+    isEducational: true,
+    durationInSeconds: 6527 // 1h 48m 47s
+  },
+  {
+    id: 'pEbIhUySqbk',
+    snippet: {
+      title: 'Next.js App Router Full Course | Learn the App Router for Next.js Applications',
+      description: 'Get up and running with the latest Next.js App Router features. Perfect for building your own full-stack apps with the latest Next.js features including server components, server actions, and more.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/pEbIhUySqbk/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/pEbIhUySqbk/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/pEbIhUySqbk/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'Jack Herrington',
+      channelId: 'UC6vRUjYqDuoMCoyO73krJrQ',
+      publishedAt: '2023-09-04T15:00:10Z',
+      tags: ['nextjs', 'react', 'app router', 'server components', 'web development', 'javascript', 'typescript', 'tutorial', 'education']
+    },
+    contentDetails: {
+      duration: 'PT1H34M22S'
+    },
+    statistics: {
+      viewCount: '398275',
+      likeCount: '12862',
+      commentCount: '472'
+    },
+    isEducational: true,
+    durationInSeconds: 5662 // 1h 34m 22s
+  },
+  {
+    id: 'rJesac0_Ftw',
+    snippet: {
+      title: 'Learn HTML in 12 Minutes',
+      description: 'Learn the basics of HTML in just 12 minutes. This is a quick intro to HTML for beginners.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/rJesac0_Ftw/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/rJesac0_Ftw/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/rJesac0_Ftw/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'Jake Wright',
+      channelId: 'UCc1Pn7FxieMohCZFPYEbs7w',
+      publishedAt: '2011-04-02T06:33:39Z',
+      tags: ['html', 'tutorial', 'beginners', 'web development', 'coding', 'education', 'quick', 'introduction', 'learn']
+    },
+    contentDetails: {
+      duration: 'PT12M14S'
+    },
+    statistics: {
+      viewCount: '3482972',
+      likeCount: '82937',
+      commentCount: '3428'
+    },
+    isEducational: true,
+    durationInSeconds: 734 // 12m 14s
+  },
+  {
+    id: 'QXeEoD0pB3E',
+    snippet: {
+      title: 'CSS-in-JS — The Future of Styling Components',
+      description: 'This talk explores the benefits and downsides of different CSS-in-JS libraries, shares lessons learned building styled-components, and demonstrates how you can make your applications feel more responsive with creative usage of these principles.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/QXeEoD0pB3E/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/QXeEoD0pB3E/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/QXeEoD0pB3E/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'CSSconf',
+      channelId: 'UCzoVCacndDCfGDf41P-z0iA',
+      publishedAt: '2021-06-01T14:25:15Z',
+      tags: ['css', 'javascript', 'css-in-js', 'styled-components', 'web development', 'frontend', 'educational', 'react']
+    },
+    contentDetails: {
+      duration: 'PT25M9S'
+    },
+    statistics: {
+      viewCount: '163948',
+      likeCount: '5735',
+      commentCount: '306'
+    },
+    isEducational: true,
+    durationInSeconds: 1509 // 25m 9s
+  },
+  {
+    id: 'rfscVS0vtbw',
+    snippet: {
+      title: 'Learn Python - Full Course for Beginners',
+      description: 'This course will give you a full introduction into all of the core concepts in Python. Follow along with the videos and you\'ll be a Python programmer in no time!',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/rfscVS0vtbw/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/rfscVS0vtbw/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/rfscVS0vtbw/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'freeCodeCamp.org',
+      channelId: 'UC8butISFwT-Wl7EV0hUK0BQ',
+      publishedAt: '2018-07-11T14:00:00Z',
+      tags: ['python', 'programming', 'tutorial', 'python tutorial', 'learn python', 'python course', 'python for beginners', 'coding', 'education']
+    },
+    contentDetails: {
+      duration: 'PT4H26M51S'
+    },
+    statistics: {
+      viewCount: '39837465',
+      likeCount: '697283',
+      commentCount: '27345'
+    },
+    isEducational: true,
+    durationInSeconds: 16011 // 4h 26m 51s
+  },
+  {
+    id: '7CqJlxBYj-M',
+    snippet: {
+      title: 'Learn Git In 15 Minutes',
+      description: 'Git is the industry standard version control system for developers. In this video, I\'ll teach the most used Git commands in 15 minutes.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/7CqJlxBYj-M/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/7CqJlxBYj-M/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/7CqJlxBYj-M/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'Colt Steele',
+      channelId: 'UCrqAGUPPMOdo0jfQ6grikZw',
+      publishedAt: '2019-08-12T16:02:44Z',
+      tags: ['git', 'version control', 'tutorial', 'beginners', 'developer tools', 'coding', 'programming', 'learn', 'github']
+    },
+    contentDetails: {
+      duration: 'PT16M10S'
+    },
+    statistics: {
+      viewCount: '2734542',
+      likeCount: '73218',
+      commentCount: '3156'
+    },
+    isEducational: true,
+    durationInSeconds: 970 // 16m 10s
+  },
+  {
+    id: 'fis26HvvDII',
+    snippet: {
+      title: 'Docker Tutorial for Beginners',
+      description: 'A complete Docker tutorial for beginners. You\'ll learn what Docker is, why it\'s popular, Docker containers, and how to use Docker commands effectively.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/fis26HvvDII/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/fis26HvvDII/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/fis26HvvDII/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'TechWorld with Nana',
+      channelId: 'UCdngmbVKX1Tgre699-XLlUA',
+      publishedAt: '2020-10-01T11:47:18Z',
+      tags: ['docker', 'containers', 'devops', 'tutorial', 'docker tutorial', 'beginner', 'containerization', 'education', 'development']
+    },
+    contentDetails: {
+      duration: 'PT1H26M47S'
+    },
+    statistics: {
+      viewCount: '1645726',
+      likeCount: '37921',
+      commentCount: '1837'
+    },
+    isEducational: true,
+    durationInSeconds: 5207 // 1h 26m 47s
+  },
+  {
+    id: '0oTh1CIOx6w',
+    snippet: {
+      title: 'Node.js and Express.js - Full Course',
+      description: 'Learn how to use Node and Express in this comprehensive course. First, you will learn the fundamentals of Node and Express. Then, you will learn to build a complex REST API.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/0oTh1CIOx6w/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/0oTh1CIOx6w/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/0oTh1CIOx6w/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'freeCodeCamp.org',
+      channelId: 'UC8butISFwT-Wl7EV0hUK0BQ',
+      publishedAt: '2021-04-16T15:56:58Z',
+      tags: ['node.js', 'express.js', 'backend', 'web development', 'rest api', 'javascript', 'full course', 'education', 'tutorial']
+    },
+    contentDetails: {
+      duration: 'PT8H30M41S'
+    },
+    statistics: {
+      viewCount: '1856472',
+      likeCount: '44876',
+      commentCount: '2524'
+    },
+    isEducational: true,
+    durationInSeconds: 30641 // 8h 30m 41s
+  },
+  {
+    id: 'PkZNo7MFNFg',
+    snippet: {
+      title: 'Learn JavaScript - Full Course for Beginners',
+      description: 'This complete 134-part JavaScript tutorial for beginners will teach you everything you need to know to get started with the JavaScript programming language.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/PkZNo7MFNFg/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/PkZNo7MFNFg/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/PkZNo7MFNFg/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'freeCodeCamp.org',
+      channelId: 'UC8butISFwT-Wl7EV0hUK0BQ',
+      publishedAt: '2018-12-10T14:15:38Z',
+      tags: ['javascript', 'learn javascript', 'javascript full course', 'beginners', 'es6', 'programming', 'web development', 'coding', 'tutorial']
+    },
+    contentDetails: {
+      duration: 'PT3H26M43S'
+    },
+    statistics: {
+      viewCount: '8762519',
+      likeCount: '234521',
+      commentCount: '12473'
+    },
+    isEducational: true,
+    durationInSeconds: 12403 // 3h 26m 43s
+  },
+  {
+    id: 'tPYj3fFJGjk',
+    snippet: {
+      title: 'TensorFlow 2.0 Complete Course - Python Neural Networks for Beginners',
+      description: 'This TensorFlow course provides a comprehensive introduction to TensorFlow 2.0 and Deep Learning. After finishing this course, you will be able to build Deep Neural Networks for Classification and Regression tasks using TensorFlow and Keras.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/tPYj3fFJGjk/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/tPYj3fFJGjk/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/tPYj3fFJGjk/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'freeCodeCamp.org',
+      channelId: 'UC8butISFwT-Wl7EV0hUK0BQ',
+      publishedAt: '2019-07-11T15:21:52Z'
+    },
+    contentDetails: {
+      duration: 'PT6H32M32S'
+    },
+    statistics: {
+      viewCount: '1234567',
+      likeCount: '28745',
+      commentCount: '1523'
     }
   },
   {
-    id: 'mock-video-2',
+    id: '1Rs2ND1ryYc',
     snippet: {
-      title: 'Web Development Crash Course 2023',
-      description: 'Complete crash course for web development in 2023 covering HTML, CSS, JavaScript, React, and more.',
+      title: 'CSS Tutorial - Zero to Hero (Complete Course)',
+      description: 'Learn CSS in this full course for beginners. CSS, or Cascading Style Sheet, is responsible for the styling and looks of a website.',
       thumbnails: {
-        default: { url: 'https://placehold.co/120x90/5333ed/fff?text=Web+Dev+Course', width: 120, height: 90 },
-        medium: { url: 'https://placehold.co/320x180/5333ed/fff?text=Web+Dev+Course', width: 320, height: 180 },
-        high: { url: 'https://placehold.co/480x360/5333ed/fff?text=Web+Dev+Course', width: 480, height: 360 }
+        default: { url: 'https://i.ytimg.com/vi/1Rs2ND1ryYc/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/1Rs2ND1ryYc/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/1Rs2ND1ryYc/hqdefault.jpg', width: 480, height: 360 }
       },
-      channelTitle: 'Dev Simplified',
-      channelId: 'mock-channel-2',
-      publishedAt: getRandomDate()
+      channelTitle: 'freeCodeCamp.org',
+      channelId: 'UC8butISFwT-Wl7EV0hUK0BQ',
+      publishedAt: '2019-07-05T14:49:33Z',
+      tags: ['css', 'css tutorial', 'css course', 'web development', 'html css', 'styling', 'web design', 'frontend', 'education']
     },
     contentDetails: {
-      duration: getRandomDuration()
+      duration: 'PT6H18M37S'
     },
     statistics: {
-      viewCount: getRandomViews(),
-      likeCount: Math.floor(parseInt(getRandomViews()) / 20).toString(),
-      commentCount: Math.floor(parseInt(getRandomViews()) / 100).toString()
-    }
+      viewCount: '2134876',
+      likeCount: '54987',
+      commentCount: '3278'
+    },
+    isEducational: true,
+    durationInSeconds: 22717 // 6h 18m 37s
   },
   {
-    id: 'mock-video-3',
+    id: 'pQN-pnXPaVg',
     snippet: {
-      title: 'Creating a YouTube Clone with React - Full Tutorial',
-      description: 'In this comprehensive tutorial, learn how to build a YouTube clone using React, complete with video playback, comments, and more.',
+      title: 'HTML Full Course - Build a Website Tutorial',
+      description: 'Learn the basics of HTML5 and web development in this awesome course for beginners.',
       thumbnails: {
-        default: { url: 'https://placehold.co/120x90/c4302b/fff?text=YT+Clone', width: 120, height: 90 },
-        medium: { url: 'https://placehold.co/320x180/c4302b/fff?text=YT+Clone', width: 320, height: 180 },
-        high: { url: 'https://placehold.co/480x360/c4302b/fff?text=YT+Clone', width: 480, height: 360 }
+        default: { url: 'https://i.ytimg.com/vi/pQN-pnXPaVg/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/pQN-pnXPaVg/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/pQN-pnXPaVg/hqdefault.jpg', width: 480, height: 360 }
       },
-      channelTitle: 'ReactMasters',
-      channelId: 'mock-channel-3',
-      publishedAt: getRandomDate()
+      channelTitle: 'freeCodeCamp.org',
+      channelId: 'UC8butISFwT-Wl7EV0hUK0BQ',
+      publishedAt: '2019-03-12T14:00:00Z',
+      tags: ['html', 'html5', 'website', 'tutorial', 'build website', 'web development', 'coding', 'beginners', 'education']
     },
     contentDetails: {
-      duration: getRandomDuration()
+      duration: 'PT2H1M32S'
     },
     statistics: {
-      viewCount: getRandomViews(),
-      likeCount: Math.floor(parseInt(getRandomViews()) / 20).toString(),
-      commentCount: Math.floor(parseInt(getRandomViews()) / 100).toString()
-    }
+      viewCount: '5643297',
+      likeCount: '146982',
+      commentCount: '7856'
+    },
+    isEducational: true,
+    durationInSeconds: 7292 // 2h 1m 32s
   },
   {
-    id: 'mock-video-4',
+    id: 'yRpLlJmRo2w',
     snippet: {
-      title: 'Advanced React Hooks - useEffect Deep Dive',
-      description: 'Master the useEffect hook in React, dealing with dependencies, cleanup, and common pitfalls.',
+      title: 'CSS Animation Tutorial #1 - Introduction',
+      description: 'Learn how to create animations using pure CSS in this tutorial series. This first video introduces the concept of CSS animations.',
       thumbnails: {
-        default: { url: 'https://placehold.co/120x90/61dafb/000?text=React+Hooks', width: 120, height: 90 },
-        medium: { url: 'https://placehold.co/320x180/61dafb/000?text=React+Hooks', width: 320, height: 180 },
-        high: { url: 'https://placehold.co/480x360/61dafb/000?text=React+Hooks', width: 480, height: 360 }
+        default: { url: 'https://i.ytimg.com/vi/yRpLlJmRo2w/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/yRpLlJmRo2w/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/yRpLlJmRo2w/hqdefault.jpg', width: 480, height: 360 }
       },
-      channelTitle: 'React Experts',
-      channelId: 'mock-channel-4',
-      publishedAt: getRandomDate()
+      channelTitle: 'The Net Ninja',
+      channelId: 'UCW5YeuERMmlnqo4oq8vwUpg',
+      publishedAt: '2017-07-31T08:29:56Z',
+      tags: ['css', 'animation', 'tutorial', 'web development', 'front-end', 'coding', 'learn', 'education', 'css animations']
     },
     contentDetails: {
-      duration: getRandomDuration()
+      duration: 'PT11M13S'
     },
     statistics: {
-      viewCount: getRandomViews(),
-      likeCount: Math.floor(parseInt(getRandomViews()) / 20).toString(),
-      commentCount: Math.floor(parseInt(getRandomViews()) / 100).toString()
-    }
+      viewCount: '328964',
+      likeCount: '5721',
+      commentCount: '142'
+    },
+    isEducational: true,
+    durationInSeconds: 673 // 11m 13s
   },
   {
-    id: 'mock-video-5',
+    id: 'CmuaJOGh4JE',
     snippet: {
-      title: 'CSS Grid and Flexbox Mastery',
-      description: 'Learn to create responsive layouts easily with CSS Grid and Flexbox, complete with practical examples.',
+      title: 'Introduction To Responsive Web Design - HTML & CSS Tutorial',
+      description: 'This HTML & CSS tutorial teaches you how to create a fully responsive website that looks great on all devices.',
       thumbnails: {
-        default: { url: 'https://placehold.co/120x90/2965f1/fff?text=CSS+Layout', width: 120, height: 90 },
-        medium: { url: 'https://placehold.co/320x180/2965f1/fff?text=CSS+Layout', width: 320, height: 180 },
-        high: { url: 'https://placehold.co/480x360/2965f1/fff?text=CSS+Layout', width: 480, height: 360 }
+        default: { url: 'https://i.ytimg.com/vi/CmuaJOGh4JE/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/CmuaJOGh4JE/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/CmuaJOGh4JE/hqdefault.jpg', width: 480, height: 360 }
       },
-      channelTitle: 'CSS Wizards',
-      channelId: 'mock-channel-5',
-      publishedAt: getRandomDate()
+      channelTitle: 'Web Dev Simplified',
+      channelId: 'UCFbNIlppjAuEX4znoulh0Cw',
+      publishedAt: '2022-04-25T13:00:12Z',
+      tags: ['responsive', 'web design', 'html', 'css', 'tutorial', 'responsive design', 'mobile-friendly', 'education', 'media queries']
     },
     contentDetails: {
-      duration: getRandomDuration()
+      duration: 'PT17M53S'
     },
     statistics: {
-      viewCount: getRandomViews(),
-      likeCount: Math.floor(parseInt(getRandomViews()) / 20).toString(),
-      commentCount: Math.floor(parseInt(getRandomViews()) / 100).toString()
-    }
+      viewCount: '312756',
+      likeCount: '13827',
+      commentCount: '645'
+    },
+    isEducational: true,
+    durationInSeconds: 1073 // 17m 53s
   },
   {
-    id: 'mock-video-6',
+    id: '5Xy-t8k_M0A',
     snippet: {
-      title: 'TypeScript for Beginners - Full Course',
-      description: 'Start your TypeScript journey with this beginner-friendly course covering all the basics you need to know.',
+      title: 'Flexbox Tutorial (CSS): Real Layout Examples',
+      description: 'In this flexbox tutorial, we\'ll look at more complex, real-world layouts you can create using flexbox.',
       thumbnails: {
-        default: { url: 'https://placehold.co/120x90/007acc/fff?text=TypeScript', width: 120, height: 90 },
-        medium: { url: 'https://placehold.co/320x180/007acc/fff?text=TypeScript', width: 320, height: 180 },
-        high: { url: 'https://placehold.co/480x360/007acc/fff?text=TypeScript', width: 480, height: 360 }
+        default: { url: 'https://i.ytimg.com/vi/5Xy-t8k_M0A/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/5Xy-t8k_M0A/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/5Xy-t8k_M0A/hqdefault.jpg', width: 480, height: 360 }
       },
-      channelTitle: 'TypeScript Tutors',
-      channelId: 'mock-channel-6',
-      publishedAt: getRandomDate()
+      channelTitle: 'Kevin Powell',
+      channelId: 'UCJZv4d5rbIKd4QHMPkcABCw',
+      publishedAt: '2021-05-06T12:30:15Z',
+      tags: ['flexbox', 'css', 'layout', 'web development', 'tutorial', 'css tutorial', 'learn css', 'education', 'css flexbox']
     },
     contentDetails: {
-      duration: getRandomDuration()
+      duration: 'PT14M52S'
     },
     statistics: {
-      viewCount: getRandomViews(),
-      likeCount: Math.floor(parseInt(getRandomViews()) / 20).toString(),
-      commentCount: Math.floor(parseInt(getRandomViews()) / 100).toString()
-    }
+      viewCount: '273851',
+      likeCount: '9187',
+      commentCount: '256'
+    },
+    isEducational: true,
+    durationInSeconds: 892 // 14m 52s
   },
   {
-    id: 'mock-video-7',
+    id: 'jS4aFq5-91M',
     snippet: {
-      title: 'Modern JavaScript: ES6 and Beyond',
-      description: 'Explore modern JavaScript features from ES6 and beyond, including arrow functions, destructuring, async/await, and more.',
+      title: 'JavaScript Programming - Full Course',
+      description: 'Learn JavaScript from scratch by solving 50+ interactive coding exercises and building three fun projects.',
       thumbnails: {
-        default: { url: 'https://placehold.co/120x90/f0db4f/000?text=Modern+JS', width: 120, height: 90 },
-        medium: { url: 'https://placehold.co/320x180/f0db4f/000?text=Modern+JS', width: 320, height: 180 },
-        high: { url: 'https://placehold.co/480x360/f0db4f/000?text=Modern+JS', width: 480, height: 360 }
+        default: { url: 'https://i.ytimg.com/vi/jS4aFq5-91M/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/jS4aFq5-91M/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/jS4aFq5-91M/hqdefault.jpg', width: 480, height: 360 }
       },
-      channelTitle: 'JS Academy',
-      channelId: 'mock-channel-7',
-      publishedAt: getRandomDate()
+      channelTitle: 'freeCodeCamp.org',
+      channelId: 'UC8butISFwT-Wl7EV0hUK0BQ',
+      publishedAt: '2022-05-17T15:15:28Z',
+      tags: ['javascript', 'programming', 'coding', 'course', 'interactive', 'projects', 'beginner', 'web development', 'frontend', 'education']
     },
     contentDetails: {
-      duration: getRandomDuration()
+      duration: 'PT3H35M12S'
     },
     statistics: {
-      viewCount: getRandomViews(),
-      likeCount: Math.floor(parseInt(getRandomViews()) / 20).toString(),
-      commentCount: Math.floor(parseInt(getRandomViews()) / 100).toString()
-    }
+      viewCount: '2183957',
+      likeCount: '58624',
+      commentCount: '1532'
+    },
+    isEducational: true,
+    durationInSeconds: 12912 // 3h 35m 12s
   },
   {
-    id: 'mock-video-8',
+    id: 'c1xUVSzpuKU',
     snippet: {
-      title: 'Full Stack Development with MERN Stack',
-      description: 'Build full-stack applications with MongoDB, Express, React, and Node.js - the popular MERN stack.',
+      title: 'Build a Todo List App in React | React Tutorial for Beginners',
+      description: 'Learn to build a simple todo list app in React while learning the fundamentals of React hooks like useState and useEffect.',
       thumbnails: {
-        default: { url: 'https://placehold.co/120x90/589636/fff?text=MERN+Stack', width: 120, height: 90 },
-        medium: { url: 'https://placehold.co/320x180/589636/fff?text=MERN+Stack', width: 320, height: 180 },
-        high: { url: 'https://placehold.co/480x360/589636/fff?text=MERN+Stack', width: 480, height: 360 }
+        default: { url: 'https://i.ytimg.com/vi/c1xUVSzpuKU/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/c1xUVSzpuKU/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/c1xUVSzpuKU/hqdefault.jpg', width: 480, height: 360 }
       },
-      channelTitle: 'Web Dev Pro',
-      channelId: 'mock-channel-8',
-      publishedAt: getRandomDate()
+      channelTitle: 'Web Dev Simplified',
+      channelId: 'UCFbNIlppjAuEX4znoulh0Cw',
+      publishedAt: '2020-10-15T13:00:16Z',
+      tags: ['react', 'todo list', 'hooks', 'useState', 'useEffect', 'web development', 'javascript', 'tutorial', 'project', 'education']
     },
     contentDetails: {
-      duration: getRandomDuration()
+      duration: 'PT20M31S'
     },
     statistics: {
-      viewCount: getRandomViews(),
-      likeCount: Math.floor(parseInt(getRandomViews()) / 20).toString(),
-      commentCount: Math.floor(parseInt(getRandomViews()) / 100).toString()
-    }
+      viewCount: '354725',
+      likeCount: '8932',
+      commentCount: '421'
+    },
+    isEducational: true,
+    durationInSeconds: 1231 // 20m 31s
   },
   {
-    id: 'mock-video-9',
+    id: 'Zftx68K-1D4',
     snippet: {
-      title: 'Tailwind CSS Crash Course',
-      description: 'Learn how to rapidly build modern websites without ever leaving your HTML with Tailwind CSS.',
+      title: 'CSS Variables in 100 Seconds',
+      description: 'Learn how to use CSS Custom Properties (Variables) in 100 seconds. An introduction to CSS variables, how they work, and why they\'re useful.',
       thumbnails: {
-        default: { url: 'https://placehold.co/120x90/38bdf8/fff?text=Tailwind', width: 120, height: 90 },
-        medium: { url: 'https://placehold.co/320x180/38bdf8/fff?text=Tailwind', width: 320, height: 180 },
-        high: { url: 'https://placehold.co/480x360/38bdf8/fff?text=Tailwind', width: 480, height: 360 }
+        default: { url: 'https://i.ytimg.com/vi/Zftx68K-1D4/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/Zftx68K-1D4/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/Zftx68K-1D4/hqdefault.jpg', width: 480, height: 360 }
       },
-      channelTitle: 'CSS Simplified',
-      channelId: 'mock-channel-9',
-      publishedAt: getRandomDate()
+      channelTitle: 'Fireship',
+      channelId: 'UCsBjURrPoezykLs9EqgamOA',
+      publishedAt: '2020-11-15T15:30:12Z',
+      tags: ['css', 'variables', 'custom properties', 'web development', 'tutorial', 'learning', 'education', 'quick']
     },
     contentDetails: {
-      duration: getRandomDuration()
+      duration: 'PT1M51S'
     },
     statistics: {
-      viewCount: getRandomViews(),
-      likeCount: Math.floor(parseInt(getRandomViews()) / 20).toString(),
-      commentCount: Math.floor(parseInt(getRandomViews()) / 100).toString()
-    }
+      viewCount: '187623',
+      likeCount: '8932',
+      commentCount: '129'
+    },
+    isEducational: true,
+    durationInSeconds: 111 // 1m 51s
   },
   {
-    id: 'mock-video-10',
+    id: 'ysEN5RaKOlA',
     snippet: {
-      title: 'GitHub Actions for CI/CD Explained',
-      description: 'Set up automated CI/CD pipelines using GitHub Actions with practical examples for web developers.',
+      title: 'Learn JavaScript With This ONE Project!',
+      description: 'This project-based JavaScript tutorial will teach you all of the real-world JS skills you need to know to start your programming journey.',
       thumbnails: {
-        default: { url: 'https://placehold.co/120x90/2088ff/fff?text=GitHub+Actions', width: 120, height: 90 },
-        medium: { url: 'https://placehold.co/320x180/2088ff/fff?text=GitHub+Actions', width: 320, height: 180 },
-        high: { url: 'https://placehold.co/480x360/2088ff/fff?text=GitHub+Actions', width: 480, height: 360 }
+        default: { url: 'https://i.ytimg.com/vi/ysEN5RaKOlA/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/ysEN5RaKOlA/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/ysEN5RaKOlA/hqdefault.jpg', width: 480, height: 360 }
       },
-      channelTitle: 'DevOps Demystified',
-      channelId: 'mock-channel-10',
-      publishedAt: getRandomDate()
+      channelTitle: 'Traversy Media',
+      channelId: 'UC29ju8bIPH5as8OGnQzwJyA',
+      publishedAt: '2023-01-10T14:00:08Z',
+      tags: ['javascript', 'javascript tutorial', 'javascript project', 'learn javascript', 'web development', 'coding', 'programming', 'beginners']
     },
     contentDetails: {
-      duration: getRandomDuration()
+      duration: 'PT2H42M11S'
     },
     statistics: {
-      viewCount: getRandomViews(),
-      likeCount: Math.floor(parseInt(getRandomViews()) / 20).toString(),
-      commentCount: Math.floor(parseInt(getRandomViews()) / 100).toString()
-    }
+      viewCount: '426712',
+      likeCount: '15423',
+      commentCount: '827'
+    },
+    isEducational: true,
+    durationInSeconds: 9731 // 2h 42m 11s
   },
   {
-    id: 'mock-video-11',
+    id: 'wm5gMKuwSYk',
     snippet: {
-      title: 'Responsive Web Design Fundamentals',
-      description: 'Learn the core principles of responsive web design to make your websites look great on any device.',
+      title: 'Learn React With This One Project',
+      description: 'Learn React by building one project - a movie database application. This complete guide takes you from setup to deployment covering props, state, hooks, and more.',
       thumbnails: {
-        default: { url: 'https://placehold.co/120x90/ff6347/fff?text=Responsive', width: 120, height: 90 },
-        medium: { url: 'https://placehold.co/320x180/ff6347/fff?text=Responsive', width: 320, height: 180 },
-        high: { url: 'https://placehold.co/480x360/ff6347/fff?text=Responsive', width: 480, height: 360 }
+        default: { url: 'https://i.ytimg.com/vi/wm5gMKuwSYk/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/wm5gMKuwSYk/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/wm5gMKuwSYk/hqdefault.jpg', width: 480, height: 360 }
       },
-      channelTitle: 'Design Masters',
-      channelId: 'mock-channel-11',
-      publishedAt: getRandomDate()
+      channelTitle: 'Traversy Media',
+      channelId: 'UC29ju8bIPH5as8OGnQzwJyA',
+      publishedAt: '2022-06-15T17:00:18Z',
+      tags: ['react', 'react tutorial', 'react project', 'learn react', 'javascript', 'web development', 'coding', 'programming', 'frontend']
     },
     contentDetails: {
-      duration: getRandomDuration()
+      duration: 'PT2H29M37S'
     },
     statistics: {
-      viewCount: getRandomViews(),
-      likeCount: Math.floor(parseInt(getRandomViews()) / 20).toString(),
-      commentCount: Math.floor(parseInt(getRandomViews()) / 100).toString()
-    }
+      viewCount: '381246',
+      likeCount: '12987',
+      commentCount: '583'
+    },
+    isEducational: true,
+    durationInSeconds: 8977 // 2h 29m 37s
   },
   {
-    id: 'mock-video-12',
+    id: 'dQw4w9WgXcQ',
     snippet: {
-      title: 'State Management in React with Redux Toolkit',
-      description: 'Simplify your React state management using Redux Toolkit with practical examples and best practices.',
+      title: 'Rick Astley - Never Gonna Give You Up (Official Music Video)',
+      description: 'The official music video for "Never Gonna Give You Up" by Rick Astley.',
       thumbnails: {
-        default: { url: 'https://placehold.co/120x90/764abc/fff?text=Redux', width: 120, height: 90 },
-        medium: { url: 'https://placehold.co/320x180/764abc/fff?text=Redux', width: 320, height: 180 },
-        high: { url: 'https://placehold.co/480x360/764abc/fff?text=Redux', width: 480, height: 360 }
+        default: { url: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg', width: 480, height: 360 }
       },
-      channelTitle: 'React State Pros',
-      channelId: 'mock-channel-12',
-      publishedAt: getRandomDate()
+      channelTitle: 'Rick Astley',
+      channelId: 'UCuAXFkgsw1L7xaCfnd5JJOw',
+      publishedAt: '2009-10-25T06:57:33Z',
+      tags: ['music', 'rick astley', 'pop', '80s', 'official video']
     },
     contentDetails: {
-      duration: getRandomDuration()
+      duration: 'PT3M33S'
     },
     statistics: {
-      viewCount: getRandomViews(),
-      likeCount: Math.floor(parseInt(getRandomViews()) / 20).toString(),
-      commentCount: Math.floor(parseInt(getRandomViews()) / 100).toString()
-    }
+      viewCount: '1318243499',
+      likeCount: '15371871',
+      commentCount: '1648941'
+    },
+    isEducational: false,
+    durationInSeconds: 213 // 3m 33s
+  },
+  {
+    id: '9bZkp7q19f0',
+    snippet: {
+      title: 'PSY - GANGNAM STYLE(강남스타일) M/V',
+      description: 'PSY - GANGNAM STYLE(강남스타일) M/V. 2012 PSY featuring HYUNA.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/9bZkp7q19f0/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/9bZkp7q19f0/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/9bZkp7q19f0/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'officialpsy',
+      channelId: 'UCrDkAvwZum-UTjHmzDI2iIw',
+      publishedAt: '2012-07-15T07:46:32Z',
+      tags: ['PSY', 'Gangnam Style', 'Music Video', 'K-pop']
+    },
+    contentDetails: {
+      duration: 'PT4M13S'
+    },
+    statistics: {
+      viewCount: '4829245173',
+      likeCount: '24878747',
+      commentCount: '5923482'
+    },
+    isEducational: false,
+    durationInSeconds: 253 // 4m 13s
+  },
+  {
+    id: 'hXI8RQYC36Q',
+    snippet: {
+      title: 'Most Expensive Car in the World - Full Documentary',
+      description: 'Explore the world of the most expensive luxury cars, supercars, and hypercars.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/hXI8RQYC36Q/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/hXI8RQYC36Q/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/hXI8RQYC36Q/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'Luxury Life',
+      channelId: 'UCdX9GkMQpKMd2iUWfpGXlqg',
+      publishedAt: '2021-12-15T15:38:40Z',
+      tags: ['luxury cars', 'supercars', 'Bugatti', 'Ferrari', 'Lamborghini', 'expensive cars']
+    },
+    contentDetails: {
+      duration: 'PT28M46S'
+    },
+    statistics: {
+      viewCount: '8237465',
+      likeCount: '197283',
+      commentCount: '12345'
+    },
+    isEducational: false,
+    durationInSeconds: 1726 // 28m 46s
   }
 ]; 

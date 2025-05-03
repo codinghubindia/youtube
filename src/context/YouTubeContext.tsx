@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
-import { YouTubeVideo, YouTubeChannel, getPopularVideos, searchVideos, resetQuotaTracking } from '../utils/api';
+import { YouTubeVideo, YouTubeChannel, getPopularVideos, searchVideos, resetQuotaTracking, getEducationalVideos } from '../utils/api';
 
 interface MiniPlayerState {
   active: boolean;
@@ -17,8 +17,8 @@ interface YouTubeContextType {
   setSearchQuery: (query: string) => void;
   darkMode: boolean;
   toggleDarkMode: () => void;
-  fetchVideos: (isSearch?: boolean, page?: number) => Promise<void>;
-  loadMoreVideos: () => Promise<void>;
+  fetchVideos: (isSearch?: boolean, page?: number, educational?: boolean) => Promise<void>;
+  loadMoreVideos: (educational?: boolean) => Promise<void>;
   miniPlayer: MiniPlayerState;
   showMiniPlayer: (videoId: string, title: string, channelTitle: string, thumbnailUrl: string) => void;
   hideMiniPlayer: () => void;
@@ -39,6 +39,7 @@ export const YouTubeProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [hasMoreVideos, setHasMoreVideos] = useState<boolean>(true);
   const [isSearchActive, setIsSearchActive] = useState<boolean>(false);
+  const [isEducationalMode, setIsEducationalMode] = useState<boolean>(false);
   const [searchHistory, setSearchHistory] = useState<string[]>(() => {
     const saved = localStorage.getItem('searchHistory');
     return saved ? JSON.parse(saved) : [];
@@ -83,9 +84,10 @@ export const YouTubeProvider: React.FC<{ children: ReactNode }> = ({ children })
     });
   }, []);
 
-  const fetchVideos = useCallback(async (isSearch = false, page = 1) => {
+  const fetchVideos = useCallback(async (isSearch = false, page = 1, educational = false) => {
     setLoading(true);
     setError(null);
+    setIsEducationalMode(educational);
     
     try {
       const pageSize = 12;
@@ -103,6 +105,9 @@ export const YouTubeProvider: React.FC<{ children: ReactNode }> = ({ children })
         }
         
         fetchedVideos = await searchVideos(searchQuery, pageSize);
+      } else if (educational) {
+        setIsSearchActive(false);
+        fetchedVideos = await getEducationalVideos(pageSize);
       } else {
         setIsSearchActive(false);
         fetchedVideos = await getPopularVideos(pageSize);
@@ -140,10 +145,12 @@ export const YouTubeProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   }, [searchQuery, searchHistory]);
 
-  const loadMoreVideos = useCallback(async () => {
+  const loadMoreVideos = useCallback(async (educational = false) => {
     if (loading || !hasMoreVideos) return;
-    await fetchVideos(isSearchActive, currentPage + 1);
-  }, [loading, hasMoreVideos, fetchVideos, isSearchActive, currentPage]);
+    // Use the educational mode from state if it's not explicitly passed
+    const useEducational = educational !== undefined ? educational : isEducationalMode;
+    await fetchVideos(isSearchActive, currentPage + 1, useEducational);
+  }, [loading, hasMoreVideos, fetchVideos, isSearchActive, currentPage, isEducationalMode]);
 
   const showMiniPlayer = useCallback((videoId: string, title: string, channelTitle: string, thumbnailUrl: string) => {
     setMiniPlayer({

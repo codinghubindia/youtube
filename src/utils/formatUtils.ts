@@ -1,3 +1,6 @@
+import { YouTubeVideo } from './api';
+import { VideoType } from '../data/videos';
+
 export const formatViews = (views: number | string): string => {
   const viewCount = typeof views === 'string' ? parseInt(views) : views;
   
@@ -79,4 +82,23 @@ export const formatSubscribers = (count: string | number): string => {
 // Legacy function maintained for compatibility
 export const formatTimestamp = (timestamp: string): string => {
   return formatTimeAgo(timestamp);
+};
+
+// Convert YouTubeVideo to VideoType format for use in VideoCard component
+export const convertToVideoType = (video: YouTubeVideo): VideoType => {
+  return {
+    id: video.id,
+    title: video.snippet.title,
+    thumbnailUrl: video.snippet.thumbnails.high.url,
+    channel: {
+      name: video.snippet.channelTitle,
+      avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(video.snippet.channelTitle)}&background=random`,
+      verified: false
+    },
+    views: parseInt(video.statistics?.viewCount || '0'),
+    timestamp: formatTimeAgo(video.snippet.publishedAt),
+    duration: video.contentDetails?.duration 
+      ? formatDuration(video.contentDetails.duration) 
+      : '0:00'
+  };
 };

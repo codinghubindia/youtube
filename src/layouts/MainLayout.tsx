@@ -6,16 +6,20 @@ import { useYouTube } from '../context/YouTubeContext';
 
 const MainLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const location = useLocation();
   const { darkMode } = useYouTube();
   
   // Check if we're on the watch page
   const isWatchPage = location.pathname.includes('/watch/');
   
-  // Close sidebar on mobile by default, and when on watch page
+  // Detect mobile and close sidebar on mobile by default, and when on watch page
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 1024 || isWatchPage) {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      
+      if (mobile || isWatchPage) {
         setSidebarOpen(false);
       } else {
         setSidebarOpen(true);
@@ -43,8 +47,8 @@ const MainLayout: React.FC = () => {
         
         <main 
           className={`flex-1 overflow-auto transition-all duration-300 dark:bg-[#0f0f0f] ${
-            sidebarOpen ? 'ml-64' : 'ml-[72px]'
-          }`}
+            sidebarOpen && !isMobile ? 'ml-64' : isMobile ? 'ml-0' : 'ml-[72px]'
+          } ${isMobile ? 'pb-20' : ''}`}
         >
           <Outlet />
         </main>

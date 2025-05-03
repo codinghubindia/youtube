@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { 
   Home, 
   Play, 
@@ -21,7 +21,8 @@ import {
   History,
   PlaySquare,
   Clock4,
-  User as UserLucide
+  User as UserLucide,
+  Brain
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -29,6 +30,81 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
+  const [isMobile, setIsMobile] = useState(false);
+  const location = useLocation();
+  
+  // Check if we're on a mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
+
+  // Mobile bottom navigation
+  if (isMobile) {
+    return (
+      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-[#0f0f0f] z-50 border-t border-gray-200 dark:border-gray-800 h-16">
+        <div className="flex justify-around h-full">
+          <NavLink
+            to="/"
+            className={({ isActive }) => 
+              `flex flex-col items-center justify-center w-1/4 ${
+                isActive ? 'text-red-600 dark:text-red-500' : 'dark:text-white'
+              }`
+            }
+          >
+            <Home size={20} />
+            <span className="text-xs mt-1">Home</span>
+          </NavLink>
+          
+          <NavLink
+            to="/shorts"
+            className={({ isActive }) => 
+              `flex flex-col items-center justify-center w-1/4 ${
+                isActive ? 'text-red-600 dark:text-red-500' : 'dark:text-white'
+              }`
+            }
+          >
+            <Play size={20} />
+            <span className="text-xs mt-1">Shorts</span>
+          </NavLink>
+          
+          <NavLink
+            to="/subscriptions"
+            className={({ isActive }) => 
+              `flex flex-col items-center justify-center w-1/4 ${
+                isActive ? 'text-red-600 dark:text-red-500' : 'dark:text-white'
+              }`
+            }
+          >
+            <Users size={20} />
+            <span className="text-xs mt-1">Subs</span>
+          </NavLink>
+          
+          <NavLink
+            to="/you"
+            className={({ isActive }) => 
+              `flex flex-col items-center justify-center w-1/4 ${
+                isActive ? 'text-red-600 dark:text-red-500' : 'dark:text-white'
+              }`
+            }
+          >
+            <UserLucide size={20} />
+            <span className="text-xs mt-1">You</span>
+          </NavLink>
+        </div>
+      </nav>
+    );
+  }
+
+  // Default desktop sidebar
   return (
     <aside 
       className={`fixed top-14 left-0 h-full bg-white dark:bg-[#0f0f0f] z-40 overflow-y-auto transition-all duration-300 ${
@@ -116,6 +192,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
             </NavLink>
             
             <NavLink
+              to="/learning"
+              className={({ isActive }) => 
+                `flex items-center px-3 py-2 mx-2 rounded-lg ${
+                  isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`
+              }
+            >
+              <Brain size={20} className="min-w-5 dark:text-white" />
+              <span className="ml-6 dark:text-white">Learning Dashboard</span>
+            </NavLink>
+            
+            <NavLink
               to="/watch-later"
               className={({ isActive }) => 
                 `flex items-center px-3 py-2 mx-2 rounded-lg ${
@@ -155,102 +243,102 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
         
         {/* Explore section */}
         {isOpen && (
-          <div className="pt-2 border-b border-gray-200 pb-2">
-            <h3 className="px-5 py-1 font-medium">Explore</h3>
+          <div className="pt-2 border-b border-gray-200 dark:border-gray-700 pb-2">
+            <h3 className="px-5 py-1 font-medium dark:text-white">Explore</h3>
             <NavLink
               to="/trending"
               className={({ isActive }) => 
                 `flex items-center px-3 py-2 mx-2 rounded-lg ${
-                  isActive ? 'bg-gray-100' : 'hover:bg-gray-100'
+                  isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`
               }
             >
-              <Flame size={20} className="min-w-5" />
-              <span className="ml-6">Trending</span>
+              <Flame size={20} className="min-w-5 dark:text-white" />
+              <span className="ml-6 dark:text-white">Trending</span>
             </NavLink>
             
             <NavLink
               to="/shopping"
               className={({ isActive }) => 
                 `flex items-center px-3 py-2 mx-2 rounded-lg ${
-                  isActive ? 'bg-gray-100' : 'hover:bg-gray-100'
+                  isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`
               }
             >
-              <ShoppingBag size={20} className="min-w-5" />
-              <span className="ml-6">Shopping</span>
+              <ShoppingBag size={20} className="min-w-5 dark:text-white" />
+              <span className="ml-6 dark:text-white">Shopping</span>
             </NavLink>
             
             <NavLink
               to="/music"
               className={({ isActive }) => 
                 `flex items-center px-3 py-2 mx-2 rounded-lg ${
-                  isActive ? 'bg-gray-100' : 'hover:bg-gray-100'
+                  isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`
               }
             >
-              <Music2 size={20} className="min-w-5" />
-              <span className="ml-6">Music</span>
+              <Music2 size={20} className="min-w-5 dark:text-white" />
+              <span className="ml-6 dark:text-white">Music</span>
             </NavLink>
             
             <NavLink
               to="/movies"
               className={({ isActive }) => 
                 `flex items-center px-3 py-2 mx-2 rounded-lg ${
-                  isActive ? 'bg-gray-100' : 'hover:bg-gray-100'
+                  isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`
               }
             >
-              <Film size={20} className="min-w-5" />
-              <span className="ml-6">Movies & TV</span>
+              <Film size={20} className="min-w-5 dark:text-white" />
+              <span className="ml-6 dark:text-white">Movies & TV</span>
             </NavLink>
             
             <NavLink
               to="/gaming"
               className={({ isActive }) => 
                 `flex items-center px-3 py-2 mx-2 rounded-lg ${
-                  isActive ? 'bg-gray-100' : 'hover:bg-gray-100'
+                  isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`
               }
             >
-              <Gamepad2 size={20} className="min-w-5" />
-              <span className="ml-6">Gaming</span>
+              <Gamepad2 size={20} className="min-w-5 dark:text-white" />
+              <span className="ml-6 dark:text-white">Gaming</span>
             </NavLink>
             
             <NavLink
               to="/news"
               className={({ isActive }) => 
                 `flex items-center px-3 py-2 mx-2 rounded-lg ${
-                  isActive ? 'bg-gray-100' : 'hover:bg-gray-100'
+                  isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`
               }
             >
-              <Newspaper size={20} className="min-w-5" />
-              <span className="ml-6">News</span>
+              <Newspaper size={20} className="min-w-5 dark:text-white" />
+              <span className="ml-6 dark:text-white">News</span>
             </NavLink>
             
             <NavLink
               to="/sports"
               className={({ isActive }) => 
                 `flex items-center px-3 py-2 mx-2 rounded-lg ${
-                  isActive ? 'bg-gray-100' : 'hover:bg-gray-100'
+                  isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`
               }
             >
-              <Trophy size={20} className="min-w-5" />
-              <span className="ml-6">Sports</span>
+              <Trophy size={20} className="min-w-5 dark:text-white" />
+              <span className="ml-6 dark:text-white">Sports</span>
             </NavLink>
             
             <NavLink
               to="/learning"
               className={({ isActive }) => 
                 `flex items-center px-3 py-2 mx-2 rounded-lg ${
-                  isActive ? 'bg-gray-100' : 'hover:bg-gray-100'
+                  isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`
               }
             >
-              <Lightbulb size={20} className="min-w-5" />
-              <span className="ml-6">Learning</span>
+              <Lightbulb size={20} className="min-w-5 dark:text-white" />
+              <span className="ml-6 dark:text-white">Learning</span>
             </NavLink>
           </div>
         )}
@@ -262,36 +350,36 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
               to="/settings"
               className={({ isActive }) => 
                 `flex items-center px-3 py-2 mx-2 rounded-lg ${
-                  isActive ? 'bg-gray-100' : 'hover:bg-gray-100'
+                  isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`
               }
             >
-              <Settings size={20} className="min-w-5" />
-              <span className="ml-6">Settings</span>
+              <Settings size={20} className="min-w-5 dark:text-white" />
+              <span className="ml-6 dark:text-white">Settings</span>
             </NavLink>
             
             <NavLink
               to="/report"
               className={({ isActive }) => 
                 `flex items-center px-3 py-2 mx-2 rounded-lg ${
-                  isActive ? 'bg-gray-100' : 'hover:bg-gray-100'
+                  isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`
               }
             >
-              <Flag size={20} className="min-w-5" />
-              <span className="ml-6">Report history</span>
+              <Flag size={20} className="min-w-5 dark:text-white" />
+              <span className="ml-6 dark:text-white">Report</span>
             </NavLink>
             
             <NavLink
               to="/help"
               className={({ isActive }) => 
                 `flex items-center px-3 py-2 mx-2 rounded-lg ${
-                  isActive ? 'bg-gray-100' : 'hover:bg-gray-100'
+                  isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`
               }
             >
-              <HelpCircle size={20} className="min-w-5" />
-              <span className="ml-6">Help</span>
+              <HelpCircle size={20} className="min-w-5 dark:text-white" />
+              <span className="ml-6 dark:text-white">Help</span>
             </NavLink>
           </div>
         )}
