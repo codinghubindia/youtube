@@ -1,74 +1,112 @@
 # API Setup Guide
 
-This guide will help you set up the necessary API keys for the YouTube Clone project.
+This guide will walk you through setting up the necessary API keys for the YouTube Clone application's Learning Mode feature.
 
-## Setting up YouTube API
+## YouTube API Setup
 
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project (or select an existing one)
-3. In the sidebar, navigate to "APIs & Services" > "Library"
-4. Search for "YouTube Data API v3" and select it
-5. Click "Enable" to activate the API for your project
-6. In the sidebar, navigate to "APIs & Services" > "Credentials"
-7. Click "Create Credentials" and select "API key"
-8. Your new API key will be displayed (copy it for later use)
-9. (Optional but recommended) Click "Restrict Key" and set the following:
-   - Application restrictions: HTTP referrers (websites)
-   - Website restrictions: Add your local development URL (e.g., http://localhost:5173/*)
-   - API restrictions: Restrict to YouTube Data API v3
+To enable fetching real video data from YouTube:
 
-## Setting up Gemini API
+1. **Create a Google Cloud Project**:
+   - Go to the [Google Cloud Console](https://console.cloud.google.com/)
+   - Click "New Project" and follow the steps to create a project
 
-1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. Sign in with your Google account
-3. Click on "Get API key" or "Create API key"
-4. Copy your new API key
+2. **Enable the YouTube Data API v3**:
+   - In your new project, navigate to "APIs & Services" > "Library"
+   - Search for "YouTube Data API v3"
+   - Click the API and then click "Enable"
 
-Note: Gemini API access may require a Google Cloud account in some regions. If so, follow these steps:
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Enable the "Gemini API" for your project
-3. Generate an API key from the Credentials section
+3. **Create API Credentials**:
+   - Go to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "API Key"
+   - Copy your new API key
 
-## Configuring your Environment Variables
+4. **Configure API Key Restrictions** (Recommended):
+   - Click on your newly created API key
+   - Under "API restrictions," select "YouTube Data API v3"
+   - Under "Application restrictions," choose "HTTP referrers" and add your development URL (e.g., `http://localhost:5173/*`)
 
-1. Create a file named `.env` in the root directory of this project
-2. Add the following lines to the file:
-   ```
-   VITE_YOUTUBE_API_KEY=your_youtube_api_key_here
-   VITE_GEMINI_API_KEY=your_gemini_api_key_here
-   ```
-3. Replace `your_youtube_api_key_here` and `your_gemini_api_key_here` with your actual API keys
-4. Save the file
+5. **Add to Environment Variables**:
+   - Create a `.env` file in your project root if it doesn't exist
+   - Add your API key as follows:
+     ```
+     VITE_YOUTUBE_API_KEY=your_youtube_api_key_here
+     ```
 
-Important: The `.env` file should never be committed to version control. It is already included in the `.gitignore` file.
+6. **Multiple API Keys for Fallback** (Optional):
+   - You can add multiple YouTube API keys to avoid quota limits:
+     ```
+     VITE_YOUTUBE_API_KEY_1=your_first_api_key_here
+     VITE_YOUTUBE_API_KEY_2=your_second_api_key_here
+     VITE_YOUTUBE_API_KEY_3=your_third_api_key_here
+     ```
 
-## Testing Your API Keys
+## Gemini API Setup for Learning Mode
 
-Once you've set up your environment variables:
+To enable AI-powered features like video summaries, study notes, and chat:
 
-1. Start the development server using `npm run dev` or `yarn dev`
-2. Navigate to the Learning Dashboard
-3. Click on any video to open its details
-4. In the Learning Sidebar, you should be able to:
-   - See the video summary
-   - Access study notes
-   - Use the chat feature to ask questions about the video
+1. **Get a Gemini API Key**:
+   - Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+   - Sign in with your Google account
+   - Click "Create API Key"
+   - Copy your API key
 
-If you encounter any issues, check the browser console for error messages that might indicate problems with your API configuration.
+2. **Add to Environment Variables**:
+   - In your `.env` file, add:
+     ```
+     VITE_GEMINI_API_KEY=your_gemini_api_key_here
+     ```
+
+3. **Multiple Gemini API Keys for Fallback** (Optional):
+   - Similar to YouTube API keys, you can add multiple Gemini API keys:
+     ```
+     VITE_GEMINI_API_KEY_1=your_first_gemini_key_here
+     VITE_GEMINI_API_KEY_2=your_second_gemini_key_here
+     ```
+
+## Quota Management
+
+### YouTube API Quota
+
+The YouTube Data API has a daily quota limit (typically 10,000 units):
+- Search operation: 100 units per call
+- Video details: 1 unit per video
+- Related videos: 1-5 units
+
+Tips to manage quota:
+- Use the mock data when developing
+- Limit unnecessary API calls during development
+- Consider creating multiple projects with separate API keys for higher quotas
+
+### Gemini API Quota
+
+Gemini API also has usage limits based on your account:
+- Free tier: Limited number of tokens per minute
+- Paid tier: Higher limits based on your plan
 
 ## Troubleshooting
 
-### YouTube API Issues
+If you encounter issues:
 
-- **403 error**: Your API key might be restricted to specific domains. Make sure localhost is allowed.
-- **Quota exceeded**: YouTube API has daily quotas. Check your [Google Cloud Console](https://console.cloud.google.com/) for quota usage.
-- **Invalid API key**: Double-check your key and make sure it's correctly copied into the `.env` file.
+1. **API Keys Not Working**:
+   - Ensure your API keys are correctly entered in the `.env` file
+   - Check that the API is enabled in your Google Cloud Console
+   - Verify any API restrictions are properly configured
 
-### Gemini API Issues
+2. **Quota Exceeded**:
+   - The application will automatically fall back to mock data
+   - Wait until your quota resets (usually the next day)
+   - Add additional API keys if available
 
-- **API key not found**: Ensure your `.env` file is in the root directory and has the correct variable name.
-- **Authorization error**: Verify that your API key is valid and active.
-- **Model not found**: The application uses the "gemini-pro" model. Make sure this model is available for your API key.
-- **Rate limit exceeded**: Gemini API has usage limits. Try again later if you hit these limits.
+3. **No Access to Learning Mode Features**:
+   - Verify your Gemini API key is correct
+   - Check the console for any API-related errors
+   - Ensure your account has access to the Gemini API (check regional availability)
 
-If problems persist, try creating a new API key for both services. 
+## Learning Mode without API Keys
+
+If you cannot set up API keys, the application will still function:
+- Mock video data will be used instead of fetching from YouTube
+- Basic learning mode features will work without AI capabilities
+- The learning dashboard will track your progress with mock videos
+
+For a full experience with all features, proper API configuration is recommended. 

@@ -1,0 +1,5 @@
+# Netlify redirects file
+# Handle SPA routing - This ensures that all routes are properly handled by index.html
+
+# Redirect all routes to index.html with a 200 status code
+/*    /index.html   200 

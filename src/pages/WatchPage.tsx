@@ -289,7 +289,7 @@ const WatchPage: React.FC = () => {
               )}
               <div>
                 <div className="flex items-center">
-                  <h3 className="font-medium dark:text-white">{channel?.snippet?.title}</h3>
+                  <h3 className="font-medium dark:text-white">{channel?.snippet?.title || video.snippet.channelTitle}</h3>
                   {channel?.statistics && (
                     <CheckCircle size={16} className="ml-1 text-gray-500" />
                   )}

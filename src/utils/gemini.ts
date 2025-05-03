@@ -1,11 +1,145 @@
 // Google Gemini API integration for AI-generated content
 
-// Get API key from environment variables
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyALhNHeJyC5doShpa5mR_09KXq8MR-NkoY';
+// Array of API keys - we'll rotate through these if one fails
+const GEMINI_API_KEYS = [
+  import.meta.env.VITE_GEMINI_API_KEY_1 || 'AIzaSyALhNHeJyC5doShpa5mR_09KXq8MR-NkoY', 
+  import.meta.env.VITE_GEMINI_API_KEY_2 || '',
+  import.meta.env.VITE_GEMINI_API_KEY_3 || ''
+].filter(key => key); // Filter out empty keys
 
-// Gemini models
-const GEMINI_TEXT_MODEL = 'gemini-2.0-flash-lite'; // Using the standard model
+// Gemini models with fallback options
+const GEMINI_MODELS = {
+  PRIMARY: 'gemini-2.0-flash-lite',    // Fast, efficient
+  SECONDARY: 'gemini-1.5-flash',       // Reliable fallback
+  TERTIARY: 'gemini-1.0-pro'           // Last resort
+};
+
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1';
+
+// Keep track of failed keys and models
+interface ApiState {
+  failedKeys: string[];
+  failedModels: string[];
+  currentKeyIndex: number;
+  currentModelIndex: number;
+  lastResetTime: number;
+}
+
+// Initialize state from localStorage or defaults
+const getApiState = (): ApiState => {
+  const saved = localStorage.getItem('geminiApiState');
+  if (saved) {
+    const state = JSON.parse(saved) as ApiState;
+    // Reset state if it's been more than 1 hour since last reset
+    const oneHourMs = 60 * 60 * 1000;
+    if (Date.now() - state.lastResetTime > oneHourMs) {
+      return {
+        failedKeys: [],
+        failedModels: [],
+        currentKeyIndex: 0,
+        currentModelIndex: 0,
+        lastResetTime: Date.now()
+      };
+    }
+    return state;
+  }
+  
+  return {
+    failedKeys: [],
+    failedModels: [],
+    currentKeyIndex: 0,
+    currentModelIndex: 0,
+    lastResetTime: Date.now()
+  };
+};
+
+// Global API state
+const apiState = getApiState();
+
+// Save state to localStorage
+const saveApiState = () => {
+  localStorage.setItem('geminiApiState', JSON.stringify(apiState));
+};
+
+// Get current API key
+const getCurrentApiKey = (): string => {
+  // If all keys failed, or no keys available
+  if (apiState.failedKeys.length >= GEMINI_API_KEYS.length || GEMINI_API_KEYS.length === 0) {
+    console.warn('All API keys have failed or no keys available');
+    return '';
+  }
+  
+  // Try to find a working key
+  let attempts = 0;
+  while (attempts < GEMINI_API_KEYS.length) {
+    const keyIndex = apiState.currentKeyIndex % GEMINI_API_KEYS.length;
+    const key = GEMINI_API_KEYS[keyIndex];
+    
+    if (!apiState.failedKeys.includes(key)) {
+      return key;
+    }
+    
+    apiState.currentKeyIndex++;
+    attempts++;
+  }
+  
+  return '';
+};
+
+// Get current model
+const getCurrentModel = (): string => {
+  const models = [GEMINI_MODELS.PRIMARY, GEMINI_MODELS.SECONDARY, GEMINI_MODELS.TERTIARY];
+  
+  // If all models failed
+  if (apiState.failedModels.length >= models.length) {
+    console.warn('All models have failed');
+    return GEMINI_MODELS.PRIMARY; // Default to primary as last resort
+  }
+  
+  // Try to find a working model
+  let attempts = 0;
+  while (attempts < models.length) {
+    const modelIndex = apiState.currentModelIndex % models.length;
+    const model = models[modelIndex];
+    
+    if (!apiState.failedModels.includes(model)) {
+      return model;
+    }
+    
+    apiState.currentModelIndex++;
+    attempts++;
+  }
+  
+  return GEMINI_MODELS.PRIMARY;
+};
+
+// Mark current key as failed and try the next one
+const handleApiKeyFailure = (key: string): boolean => {
+  if (!apiState.failedKeys.includes(key)) {
+    console.warn(`API key ${key.substring(0, 5)}... failed`);
+    apiState.failedKeys.push(key);
+  }
+  
+  apiState.currentKeyIndex++;
+  saveApiState();
+  
+  // Return true if there are still keys available
+  return apiState.failedKeys.length < GEMINI_API_KEYS.length;
+};
+
+// Mark current model as failed and try the next one
+const handleModelFailure = (model: string): boolean => {
+  if (!apiState.failedModels.includes(model)) {
+    console.warn(`Model ${model} failed`);
+    apiState.failedModels.push(model);
+  }
+  
+  apiState.currentModelIndex++;
+  saveApiState();
+  
+  // Return true if there are still models available
+  return apiState.failedModels.length < 3; // 3 models total
+};
 
 /**
  * Helper function to make API calls to Google Gemini
@@ -15,67 +149,116 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1';
  * @returns The generated text response
  */
 async function callGeminiAPI(prompt: string, temperature = 0.3, maxTokens = 2048): Promise<string> {
-  if (!GEMINI_API_KEY) {
-    console.error('Gemini API key is missing! Please add VITE_GEMINI_API_KEY to your .env file');
-    return "No API key configured. Please add a valid Gemini API key to your environment variables.";
-  }
-
-  try {
-    console.log('Calling Gemini API with prompt:', prompt.substring(0, 100) + '...');
+  // Try all available keys and models
+  let attemptsRemaining = GEMINI_API_KEYS.length * 3; // 3 models per key
+  
+  while (attemptsRemaining > 0) {
+    const apiKey = getCurrentApiKey();
+    const model = getCurrentModel();
     
-    // Updated API URL with key as query parameter
-    const response = await fetch(`${GEMINI_API_URL}/models/${GEMINI_TEXT_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [{ 
-          parts: [{ text: prompt }] 
-        }],
-        generationConfig: {
-          temperature: temperature,
-          maxOutputTokens: maxTokens,
-          topK: 40,
-          topP: 0.95
+    if (!apiKey) {
+      console.error('No working Gemini API keys available');
+      return "No working API keys available. Please add valid Gemini API keys to your environment variables.";
+    }
+    
+    try {
+      console.log(`Calling Gemini API with model: ${model}, prompt: ${prompt.substring(0, 100)}...`);
+      
+      // Updated API URL with key as query parameter
+      const response = await fetch(`${GEMINI_API_URL}/models/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [{ 
+            parts: [{ text: prompt }] 
+          }],
+          generationConfig: {
+            temperature: temperature,
+            maxOutputTokens: maxTokens,
+            topK: 40,
+            topP: 0.95
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`API response error with model ${model}:`, response.status, errorText);
+        
+        // Check error type to determine if it's a key or model issue
+        if (response.status === 400 && errorText.includes('model')) {
+          // Model-related error, try another model
+          handleModelFailure(model);
+        } else {
+          // Probably an API key issue
+          handleApiKeyFailure(apiKey);
         }
-      })
-    });
+        
+        attemptsRemaining--;
+        continue; // Try the next key/model
+      }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API response error:', response.status, errorText);
-      throw new Error(`API Error: ${response.status} - ${errorText}`);
-    }
+      const data = await response.json();
+      console.log(`Received API response from ${model}:`, JSON.stringify(data).substring(0, 100) + '...');
+      
+      if (!data.candidates || data.candidates.length === 0) {
+        console.error(`No response generated from model ${model}`);
+        handleModelFailure(model);
+        attemptsRemaining--;
+        continue;
+      }
 
-    const data = await response.json();
-    console.log('Received API response:', JSON.stringify(data).substring(0, 100) + '...');
-    
-    if (!data.candidates || data.candidates.length === 0) {
-      throw new Error('No response generated');
+      // Extract text from response - handle different response formats
+      let responseText = '';
+      if (data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts.length > 0) {
+        responseText = data.candidates[0].content.parts[0].text || '';
+      } else if (data.candidates[0].text) {
+        responseText = data.candidates[0].text;
+      }
+      
+      if (!responseText) {
+        console.error(`Empty response from model ${model}`);
+        handleModelFailure(model);
+        attemptsRemaining--;
+        continue;
+      }
+      
+      // Success! Reset the failed attempts counter for this model
+      if (apiState.failedModels.includes(model)) {
+        const index = apiState.failedModels.indexOf(model);
+        if (index > -1) {
+          apiState.failedModels.splice(index, 1);
+          saveApiState();
+        }
+      }
+      
+      return responseText;
+    } catch (error) {
+      console.error(`Error calling Gemini API with model ${model}:`, error);
+      handleModelFailure(model);
+      attemptsRemaining--;
     }
-
-    // Extract text from response - handle different response formats
-    let responseText = '';
-    if (data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts.length > 0) {
-      responseText = data.candidates[0].content.parts[0].text || '';
-    } else if (data.candidates[0].text) {
-      responseText = data.candidates[0].text;
-    }
-    
-    if (!responseText) {
-      throw new Error('Empty response from API');
-    }
-    
-    return responseText;
-  } catch (error) {
-    console.error('Error calling Gemini API:', error);
-    return `I encountered an issue connecting to the AI service. Please check your API key configuration and try again.`;
   }
+  
+  // All attempts failed
+  return `I encountered an issue connecting to the AI service. Please check your API key configuration and try again.`;
 }
 
 // Export for testing purposes
-export { callGeminiAPI };
+export { callGeminiAPI, getCurrentApiKey, getCurrentModel };
+
+// Reset API state (for debugging)
+export const resetGeminiApiState = () => {
+  apiState.failedKeys = [];
+  apiState.failedModels = [];
+  apiState.currentKeyIndex = 0;
+  apiState.currentModelIndex = 0;
+  apiState.lastResetTime = Date.now();
+  saveApiState();
+  console.log('Gemini API state reset');
+};
 
 /**
  * Extract YouTube video ID from a URL
@@ -354,7 +537,7 @@ function convertToHtml(text: string): string {
  * @returns Boolean indicating if the API is ready
  */
 export function isGeminiConfigured(): boolean {
-  return Boolean(GEMINI_API_KEY);
+  return Boolean(GEMINI_API_KEYS.length > 0);
 }
 
 /**

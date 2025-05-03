@@ -5,9 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/build.js",
+    "build:simple": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prebuild": "mkdir -p scripts dist",
+    "netlify": "netlify deploy --prod",
+    "netlify:preview": "netlify deploy",
+    "cleanup": "node scripts/cleanup.js"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",

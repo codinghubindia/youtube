@@ -123,31 +123,34 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
             <div className="hidden md:block relative mx-2">
               <button 
                 onClick={toggleLearningMode}
-                className={`flex items-center px-3 py-1.5 rounded-full transition-all duration-300 ${
+                className={`flex items-center px-3 py-1.5 rounded-full transition-all duration-300 shadow-md ${
                   learningMode 
-                    ? 'bg-gradient-to-r from-learning-primary to-learning-secondary text-white' 
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-500 text-white ring-2 ring-blue-300 dark:ring-blue-500 ring-offset-1' 
+                    : 'bg-gradient-to-r from-slate-100 to-gray-200 hover:from-blue-50 hover:to-indigo-100 dark:from-gray-800 dark:to-slate-900 dark:hover:from-gray-700 dark:hover:to-slate-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700'
                 }`}
               >
                 <div className={`flex items-center transition-all duration-300 ${
                   learningMode ? 'mr-2' : 'mr-1'
                 }`}>
                   {learningMode ? (
-                    <Brain size={16} className={`${learningMode ? 'animate-pulse' : ''}`} />
+                    <Brain size={16} className="animate-pulse text-yellow-200" />
                   ) : (
-                    <Lightbulb size={16} />
+                    <Lightbulb size={16} className="text-yellow-500 dark:text-yellow-400" />
                   )}
                 </div>
-                <span className="text-xs font-medium whitespace-nowrap">
+                <span className={`text-xs font-medium whitespace-nowrap ${learningMode ? 'text-white' : ''}`}>
                   Learning Mode
                 </span>
                 {!learningMode && (
-                  <span className="ml-1 text-xs font-semibold text-learning-accent bg-learning-accent/10 px-1 rounded">NEW</span>
+                  <span className="ml-1 text-xs font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-1.5 py-0.5 rounded-full animate-pulse relative">
+                    <span className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full animate-ping opacity-75"></span>
+                    <span className="relative">NEW</span>
+                  </span>
                 )}
                 {learningMode && (
-                  <div className="absolute -top-1 -right-1 flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-learning-accent opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-learning-accent"></span>
+                  <div className="absolute -top-1 -right-1 flex h-4 w-4">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-300 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-4 w-4 bg-yellow-400"></span>
                   </div>
                 )}
               </button>
@@ -156,22 +159,22 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
             {/* Mobile Learning Mode Button */}
             <button 
               onClick={toggleLearningMode}
-              className={`p-2 mx-1 rounded-full md:hidden transition-all duration-300 ${
+              className={`p-2 mx-1 rounded-full block md:hidden transition-all duration-300 shadow-md ${
                 learningMode 
-                  ? 'bg-gradient-to-r from-learning-primary to-learning-secondary text-white' 
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-500 text-white ring-2 ring-blue-300 dark:ring-blue-500 ring-offset-1' 
+                  : 'bg-gradient-to-r from-slate-100 to-gray-200 hover:from-blue-50 hover:to-indigo-100 dark:from-gray-800 dark:to-slate-900 dark:hover:from-gray-700 dark:hover:to-slate-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700'
               }`}
               aria-label="Toggle learning mode"
             >
               {learningMode ? (
-                <Brain size={20} className="animate-pulse" />
+                <Brain size={20} className="animate-pulse text-yellow-200" />
               ) : (
-                <Lightbulb size={20} />
+                <Lightbulb size={20} className="text-yellow-500 dark:text-yellow-400" />
               )}
               {learningMode && (
-                <div className="absolute -top-1 -right-1 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-learning-accent opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-learning-accent"></span>
+                <div className="absolute -top-1 -right-1 flex h-4 w-4">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-300 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-4 w-4 bg-yellow-400"></span>
                 </div>
               )}
             </button>
@@ -254,18 +257,18 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
                     >
                       <div className="flex items-center">
                         {learningMode ? (
-                          <Brain size={18} className="mr-3 text-learning-primary dark:text-learning-accent" />
+                          <Brain size={18} className="mr-3 text-purple-600" />
                         ) : (
-                          <Lightbulb size={18} className="mr-3 dark:text-white" />
+                          <Lightbulb size={18} className="mr-3 text-yellow-500 dark:text-yellow-400" />
                         )}
                         <div>
                           <span className="dark:text-white">Learning Mode</span>
-                          <span className="ml-1 text-xs font-semibold text-learning-accent bg-learning-accent/10 px-1 rounded">NEW</span>
+                          <span className="ml-1 text-xs font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-1.5 py-0.5 rounded-full">NEW</span>
                         </div>
                       </div>
                       <div className="flex items-center">
                         <div className={`relative w-10 h-5 rounded-full transition-colors duration-300 ${
-                          learningMode ? 'bg-learning-primary dark:bg-learning-accent' : 'bg-gray-300 dark:bg-gray-600'
+                          learningMode ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-500' : 'bg-gray-300 dark:bg-gray-600'
                         }`}>
                           <div className={`absolute top-0.5 left-0.5 bg-white w-4 h-4 rounded-full shadow transition-transform duration-300 ${
                             learningMode ? 'transform translate-x-5' : ''

@@ -2,6 +2,21 @@
 
 A modern YouTube clone built with React, TypeScript, and Tailwind CSS that mimics the core functionality and UI of YouTube, with an enhanced Learning Mode for educational content.
 
+## 🏆 Hackathon Highlights
+
+This project introduces a revolutionary **Learning Mode** feature that transforms YouTube from a casual viewing platform into a powerful educational tool:
+
+- **Smart Content Filtering** - Automatically surfaces educational videos under 5 minutes for focused learning
+- **AI-Powered Learning** - Uses Google Gemini to generate summaries, notes, and answer questions
+- **Personalized Education** - Builds a learning profile that adapts to your interests over time
+- **Continuous Learning** - Tracks progress and recommends new content based on your learning patterns
+- **Beautiful UX** - Seamless integration with a vibrant, accessible UI that makes learning engaging
+
+> 💡 **Key Innovation**: The project reimagines video consumption from passive entertainment to active learning through intelligent filtering and AI assistance.
+
+![Learning Mode Demo](docs/assets/learning-mode-demo.png)
+*Add a screenshot of the Learning Mode in action here*
+
 ## Features
 
 - **Responsive Design**: Works on desktop, tablet, and mobile devices
@@ -19,13 +34,47 @@ A modern YouTube clone built with React, TypeScript, and Tailwind CSS that mimic
 
 ## Learning Mode
 
-The Learning Mode is a key feature that enhances educational videos:
+The Learning Mode is the standout feature that transforms this YouTube clone into an educational platform:
 
-- **Video Summaries**: Get AI-generated summaries of video content
-- **Study Notes**: Convert video content into structured study notes
-- **AI Chat**: Ask questions about the video content and get AI-powered responses
-- **Progress Tracking**: Track your watch history and completion percentage
-- **Personalized Recommendations**: Get video recommendations based on your learning interests
+### 🧠 Intelligent Content Filtering
+
+- **Duration-Based Selection**: Automatically filters for videos under 5 minutes - perfect for microlearning
+- **Educational Content Detection**: Uses tag analysis and content markers to identify truly educational content
+- **Visual Indicators**: Clear UI elements show which videos are educational and their completion status
+
+### 🤖 AI-Powered Learning Assistance
+
+- **Video Summaries**: Get concise AI-generated summaries of educational videos
+- **Key Points Extraction**: Important concepts from videos are highlighted and organized
+- **Interactive Learning**: Ask the AI questions about the video content for deeper understanding
+- **Study Notes Generation**: Convert videos into structured, downloadable study materials
+
+### 📊 Personalized Learning Dashboard
+
+![Learning Dashboard](docs/assets/learning-dashboard.png)
+*Add a screenshot of the Learning Dashboard here*
+
+- **Progress Tracking**: Visual metrics show your learning journey
+- **Interest Analysis**: The system identifies your learning patterns and preferred topics
+- **History Management**: Easily browse and continue previously watched educational content
+- **Smart Recommendations**: Get personalized suggestions based on your learning profile
+
+### 🔄 Adaptive Learning System
+
+- **Profile Building**: The more you watch, the smarter the system becomes about your interests
+- **Content Scoring**: Videos are ranked based on relevance to your learning profile
+- **Tag Analysis**: Detailed analysis of content tags builds a weighted map of your preferences
+- **Multi-Model AI Support**: Uses multiple Gemini AI models with automatic fallback mechanisms
+
+### ⚡ Technical Implementation
+
+- **Multiple API Fallbacks**: System automatically rotates between API keys to prevent quota limits
+- **Model Redundancy**: Falls back between Gemini models (2.0-flash-lite → 1.5-flash → 1.0-pro)
+- **Local Storage Persistence**: Learning profile maintained even between sessions
+- **Throttled API Usage**: Intelligent request management to optimize AI quota
+
+![Learning Mode Architecture](docs/assets/learning-mode-architecture.png)
+*Add a diagram of the Learning Mode architecture here*
 
 ## Tech Stack
 
@@ -117,6 +166,25 @@ The application includes a quota tracking system to:
 - Monitor API usage
 - Switch to alternative API keys when quota is approaching limits
 - Fall back to mock data when all API keys have reached their quota
+
+## Deployment
+
+### Netlify Deployment
+
+This project is configured for easy deployment to [Netlify](https://www.netlify.com/):
+
+1. Push your code to a Git repository (GitHub, GitLab, or Bitbucket)
+2. Sign up or log in to Netlify
+3. Connect your repository and deploy
+4. Configure your API keys as environment variables in the Netlify dashboard
+
+The included `netlify.toml` file contains all necessary configuration for:
+- Build settings
+- SPA routing
+- Caching optimization
+- Environment variable setup
+
+For detailed deployment instructions, see the [Netlify Deployment Guide](docs/NETLIFY_DEPLOY.md).
 
 ## Features Implemented
 

@@ -7,7 +7,6 @@ import {
   getLearningProfile, 
   getPersonalizedRecommendations, 
   clearLearningProfile,
-  isVideoInWatchHistory,
   getVideoWatchProgress
 } from '../utils/learningRecommendations';
 import { useLearningMode } from '../context/LearningModeContext';
@@ -235,6 +234,111 @@ const LearningDashboardPage: React.FC = () => {
             {/* Overview Tab */}
             {activeTab === 'overview' && (
               <div>
+                {/* How It Works Section - New Addition */}
+                <div className="mb-8 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                  <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">How Learning Mode Works</h2>
+                  
+                  <div className="space-y-6">
+                    <div className="flex flex-col md:flex-row gap-6 mb-4">
+                      <div className="flex-1 border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50">
+                        <div className="flex items-center mb-3">
+                          <div className="p-2 rounded-full bg-purple-100 dark:bg-purple-900 mr-3">
+                            <Brain className="text-purple-500 dark:text-purple-300" size={20} />
+                          </div>
+                          <h3 className="font-medium text-gray-900 dark:text-white">Smart Content Filtering</h3>
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                          When Learning Mode is active, our system filters videos to show only educational content under 5 minutes in length, perfect for focused learning sessions.
+                        </p>
+                      </div>
+                      
+                      <div className="flex-1 border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50">
+                        <div className="flex items-center mb-3">
+                          <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900 mr-3">
+                            <BookOpen className="text-blue-500 dark:text-blue-300" size={20} />
+                          </div>
+                          <h3 className="font-medium text-gray-900 dark:text-white">AI-Powered Summaries</h3>
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                          The system analyzes video content using Gemini AI to generate concise summaries, key points, and structured notes to enhance your learning experience.
+                        </p>
+                      </div>
+                      
+                      <div className="flex-1 border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50">
+                        <div className="flex items-center mb-3">
+                          <div className="p-2 rounded-full bg-green-100 dark:bg-green-900 mr-3">
+                            <BarChart2 className="text-green-500 dark:text-green-300" size={20} />
+                          </div>
+                          <h3 className="font-medium text-gray-900 dark:text-white">Progress Tracking</h3>
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                          We automatically track which educational videos you've watched, how much of each one you've completed, and use this data to build your personalized learning profile.
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <h3 className="font-medium text-gray-900 dark:text-white">Personalization System</h3>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Our recommendation engine analyzes your viewing patterns to understand your educational interests:
+                      </p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex items-start">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 mt-0.5 mr-3">1</div>
+                          <div>
+                            <h4 className="font-medium text-gray-800 dark:text-white">Interest Tracking</h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              The system analyzes video tags and content to identify topics you're interested in, building a weighted map of your preferences.
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-start">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 mt-0.5 mr-3">2</div>
+                          <div>
+                            <h4 className="font-medium text-gray-800 dark:text-white">Content Scoring</h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Each potential recommendation is scored based on how well it matches your interest profile and learning goals.
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-start">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 mt-0.5 mr-3">3</div>
+                          <div>
+                            <h4 className="font-medium text-gray-800 dark:text-white">Adaptive Learning</h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              The more you use Learning Mode, the better it understands your preferences, continuously refining recommendations.
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-start">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 mt-0.5 mr-3">4</div>
+                          <div>
+                            <h4 className="font-medium text-gray-800 dark:text-white">AI Integration</h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Gemini AI provides intelligent content analysis, helping surface the most valuable educational videos for your specific interests.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h3 className="font-medium text-gray-900 dark:text-white mb-2">Getting the Most from Learning Mode</h3>
+                      <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400 list-disc pl-5">
+                        <li>Toggle Learning Mode in the navigation bar to filter for educational content</li>
+                        <li>Watch videos to completion to build a more accurate preference profile</li>
+                        <li>Explore the recommendations tab for personalized content suggestions</li>
+                        <li>Review your watch history to continue where you left off</li>
+                        <li>Configure your Gemini API key to enable AI-powered features like summaries and notes</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                
                 {/* Learning progress */}
                 <div className="mb-8">
                   <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Your Learning Progress</h2>
@@ -412,7 +516,56 @@ const LearningDashboardPage: React.FC = () => {
             {/* Recommendations Tab */}
             {activeTab === 'recommendations' && (
               <div>
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Recommended For You</h2>
+                {/* New - Featured Short Learning Videos Section */}
+                <div className="mb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center">
+                      <div className="p-2 rounded-full bg-yellow-100 dark:bg-yellow-900 mr-3">
+                        <Clock className="text-yellow-500 dark:text-yellow-300" size={18} />
+                      </div>
+                      Featured Short Learning Videos
+                      <span className="ml-2 px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 text-xs font-medium rounded-full">
+                        Under 5 min
+                      </span>
+                    </h2>
+                  </div>
+                  
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-6">
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      Quick, focused videos perfect for learning in short bursts. These bite-sized tutorials are ideal for mastering specific concepts.
+                    </p>
+                    
+                    {/* Video Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {recommendations
+                        .filter(video => video.durationInSeconds && video.durationInSeconds <= 300)
+                        .slice(0, 4)
+                        .map(video => (
+                          <div key={video.id} className="flex flex-col">
+                            <Link to={`/watch/${video.id}`} className="flex-1">
+                              <VideoCard video={convertToVideoType(video)} />
+                            </Link>
+                            
+                            <div className="mt-2 flex items-center">
+                              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                                <div 
+                                  className="bg-learning-primary dark:bg-learning-accent h-1.5 rounded-full" 
+                                  style={{ width: `${getVideoWatchProgress(video.id)}%` }}
+                                ></div>
+                              </div>
+                              <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                                {Math.floor((video.durationInSeconds || 0) / 60)}:{((video.durationInSeconds || 0) % 60).toString().padStart(2, '0')}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+                
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+                  Recommended For You
+                </h2>
                 
                 {recommendations.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

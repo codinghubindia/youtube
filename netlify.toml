@@ -1,0 +1,32 @@
+# Netlify configuration file
+
+[build]
+  # Directory to publish to (Vite output)
+  publish = "dist"
+  # Default build command
+  command = "npm run build"
+
+# Handle SPA routing - redirect any non-file URLs to index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Cache settings for assets
+[[headers]]
+  # Cache JS and CSS files with a hash in the filename
+  for = "/*.(js|css)"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache images, fonts, and media files
+[[headers]]
+  for = "/*.(jpg|jpeg|png|gif|webp|svg|mp4|webm|woff|woff2)"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+# Environment variable placeholder
+[build.environment]
+  # Uncomment and add your API keys when configuring in Netlify dashboard
+  # VITE_YOUTUBE_API_KEY = ""
+  # VITE_GEMINI_API_KEY = "" 

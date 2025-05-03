@@ -283,32 +283,6 @@ export const mockVideos: YouTubeVideo[] = [
     durationInSeconds: 5207 // 1h 26m 47s
   },
   {
-    id: '0oTh1CIOx6w',
-    snippet: {
-      title: 'Node.js and Express.js - Full Course',
-      description: 'Learn how to use Node and Express in this comprehensive course. First, you will learn the fundamentals of Node and Express. Then, you will learn to build a complex REST API.',
-      thumbnails: {
-        default: { url: 'https://i.ytimg.com/vi/0oTh1CIOx6w/default.jpg', width: 120, height: 90 },
-        medium: { url: 'https://i.ytimg.com/vi/0oTh1CIOx6w/mqdefault.jpg', width: 320, height: 180 },
-        high: { url: 'https://i.ytimg.com/vi/0oTh1CIOx6w/hqdefault.jpg', width: 480, height: 360 }
-      },
-      channelTitle: 'freeCodeCamp.org',
-      channelId: 'UC8butISFwT-Wl7EV0hUK0BQ',
-      publishedAt: '2021-04-16T15:56:58Z',
-      tags: ['node.js', 'express.js', 'backend', 'web development', 'rest api', 'javascript', 'full course', 'education', 'tutorial']
-    },
-    contentDetails: {
-      duration: 'PT8H30M41S'
-    },
-    statistics: {
-      viewCount: '1856472',
-      likeCount: '44876',
-      commentCount: '2524'
-    },
-    isEducational: true,
-    durationInSeconds: 30641 // 8h 30m 41s
-  },
-  {
     id: 'PkZNo7MFNFg',
     snippet: {
       title: 'Learn JavaScript - Full Course for Beginners',
@@ -346,7 +320,8 @@ export const mockVideos: YouTubeVideo[] = [
       },
       channelTitle: 'freeCodeCamp.org',
       channelId: 'UC8butISFwT-Wl7EV0hUK0BQ',
-      publishedAt: '2019-07-11T15:21:52Z'
+      publishedAt: '2019-07-11T15:21:52Z',
+      tags: ['tensorflow', 'deep learning', 'neural networks', 'machine learning', 'python', 'data science', 'artificial intelligence', 'programming', 'tutorial', 'education']
     },
     contentDetails: {
       duration: 'PT6H32M32S'
@@ -355,7 +330,9 @@ export const mockVideos: YouTubeVideo[] = [
       viewCount: '1234567',
       likeCount: '28745',
       commentCount: '1523'
-    }
+    },
+    isEducational: true,
+    durationInSeconds: 23552 // 6h 32m 32s
   },
   {
     id: '1Rs2ND1ryYc',
@@ -436,58 +413,6 @@ export const mockVideos: YouTubeVideo[] = [
     durationInSeconds: 673 // 11m 13s
   },
   {
-    id: 'CmuaJOGh4JE',
-    snippet: {
-      title: 'Introduction To Responsive Web Design - HTML & CSS Tutorial',
-      description: 'This HTML & CSS tutorial teaches you how to create a fully responsive website that looks great on all devices.',
-      thumbnails: {
-        default: { url: 'https://i.ytimg.com/vi/CmuaJOGh4JE/default.jpg', width: 120, height: 90 },
-        medium: { url: 'https://i.ytimg.com/vi/CmuaJOGh4JE/mqdefault.jpg', width: 320, height: 180 },
-        high: { url: 'https://i.ytimg.com/vi/CmuaJOGh4JE/hqdefault.jpg', width: 480, height: 360 }
-      },
-      channelTitle: 'Web Dev Simplified',
-      channelId: 'UCFbNIlppjAuEX4znoulh0Cw',
-      publishedAt: '2022-04-25T13:00:12Z',
-      tags: ['responsive', 'web design', 'html', 'css', 'tutorial', 'responsive design', 'mobile-friendly', 'education', 'media queries']
-    },
-    contentDetails: {
-      duration: 'PT17M53S'
-    },
-    statistics: {
-      viewCount: '312756',
-      likeCount: '13827',
-      commentCount: '645'
-    },
-    isEducational: true,
-    durationInSeconds: 1073 // 17m 53s
-  },
-  {
-    id: '5Xy-t8k_M0A',
-    snippet: {
-      title: 'Flexbox Tutorial (CSS): Real Layout Examples',
-      description: 'In this flexbox tutorial, we\'ll look at more complex, real-world layouts you can create using flexbox.',
-      thumbnails: {
-        default: { url: 'https://i.ytimg.com/vi/5Xy-t8k_M0A/default.jpg', width: 120, height: 90 },
-        medium: { url: 'https://i.ytimg.com/vi/5Xy-t8k_M0A/mqdefault.jpg', width: 320, height: 180 },
-        high: { url: 'https://i.ytimg.com/vi/5Xy-t8k_M0A/hqdefault.jpg', width: 480, height: 360 }
-      },
-      channelTitle: 'Kevin Powell',
-      channelId: 'UCJZv4d5rbIKd4QHMPkcABCw',
-      publishedAt: '2021-05-06T12:30:15Z',
-      tags: ['flexbox', 'css', 'layout', 'web development', 'tutorial', 'css tutorial', 'learn css', 'education', 'css flexbox']
-    },
-    contentDetails: {
-      duration: 'PT14M52S'
-    },
-    statistics: {
-      viewCount: '273851',
-      likeCount: '9187',
-      commentCount: '256'
-    },
-    isEducational: true,
-    durationInSeconds: 892 // 14m 52s
-  },
-  {
     id: 'jS4aFq5-91M',
     snippet: {
       title: 'JavaScript Programming - Full Course',
@@ -512,32 +437,6 @@ export const mockVideos: YouTubeVideo[] = [
     },
     isEducational: true,
     durationInSeconds: 12912 // 3h 35m 12s
-  },
-  {
-    id: 'c1xUVSzpuKU',
-    snippet: {
-      title: 'Build a Todo List App in React | React Tutorial for Beginners',
-      description: 'Learn to build a simple todo list app in React while learning the fundamentals of React hooks like useState and useEffect.',
-      thumbnails: {
-        default: { url: 'https://i.ytimg.com/vi/c1xUVSzpuKU/default.jpg', width: 120, height: 90 },
-        medium: { url: 'https://i.ytimg.com/vi/c1xUVSzpuKU/mqdefault.jpg', width: 320, height: 180 },
-        high: { url: 'https://i.ytimg.com/vi/c1xUVSzpuKU/hqdefault.jpg', width: 480, height: 360 }
-      },
-      channelTitle: 'Web Dev Simplified',
-      channelId: 'UCFbNIlppjAuEX4znoulh0Cw',
-      publishedAt: '2020-10-15T13:00:16Z',
-      tags: ['react', 'todo list', 'hooks', 'useState', 'useEffect', 'web development', 'javascript', 'tutorial', 'project', 'education']
-    },
-    contentDetails: {
-      duration: 'PT20M31S'
-    },
-    statistics: {
-      viewCount: '354725',
-      likeCount: '8932',
-      commentCount: '421'
-    },
-    isEducational: true,
-    durationInSeconds: 1231 // 20m 31s
   },
   {
     id: 'Zftx68K-1D4',
@@ -694,5 +593,350 @@ export const mockVideos: YouTubeVideo[] = [
     },
     isEducational: false,
     durationInSeconds: 1726 // 28m 46s
+  },
+  {
+    id: 'node-express-course',
+    snippet: {
+      title: 'Node.js and Express.js - Full Course',
+      description: 'Learn how to use Node and Express in this comprehensive course. First, you will learn the fundamentals of Node and Express. Then, you will learn to build a complex REST API.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/Oe421EPjeBE/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/Oe421EPjeBE/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/Oe421EPjeBE/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'freeCodeCamp.org',
+      channelId: 'UC8butISFwT-Wl7EV0hUK0BQ',
+      publishedAt: '2021-04-16T15:56:58Z',
+      tags: ['node.js', 'express.js', 'backend', 'web development', 'rest api', 'javascript', 'full course', 'education', 'tutorial']
+    },
+    contentDetails: {
+      duration: 'PT8H30M41S'
+    },
+    statistics: {
+      viewCount: '1900000',
+      likeCount: '44876',
+      commentCount: '2524'
+    },
+    isEducational: true,
+    durationInSeconds: 30641 // 8h 30m 41s
+  },
+  {
+    id: 'responsive-design',
+    snippet: {
+      title: 'Introduction To Responsive Web Design - HTML & CSS Tutorial',
+      description: 'This HTML & CSS tutorial teaches you how to create a fully responsive website that looks great on all devices.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/CmuaJOGh4JE/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/CmuaJOGh4JE/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/CmuaJOGh4JE/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'Web Dev Simplified',
+      channelId: 'UCFbNIlppjAuEX4znoulh0Cw',
+      publishedAt: '2022-04-25T13:00:12Z',
+      tags: ['responsive', 'web design', 'html', 'css', 'tutorial', 'responsive design', 'mobile-friendly', 'education', 'media queries']
+    },
+    contentDetails: {
+      duration: 'PT17M53S'
+    },
+    statistics: {
+      viewCount: '312756',
+      likeCount: '13827',
+      commentCount: '645'
+    },
+    isEducational: true,
+    durationInSeconds: 1073 // 17m 53s
+  },
+  {
+    id: 'flexbox-tutorial',
+    snippet: {
+      title: 'Flexbox Tutorial (CSS): Real Layout Examples',
+      description: 'In this flexbox tutorial, we\'ll look at more complex, real-world layouts you can create using flexbox.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/K74l26pE4YA/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/K74l26pE4YA/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/K74l26pE4YA/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'Kevin Powell',
+      channelId: 'UCJZv4d5rbIKd4QHMPkcABCw',
+      publishedAt: '2021-05-06T12:30:15Z',
+      tags: ['flexbox', 'css', 'layout', 'web development', 'tutorial', 'css tutorial', 'learn css', 'education', 'css flexbox']
+    },
+    contentDetails: {
+      duration: 'PT14M52S'
+    },
+    statistics: {
+      viewCount: '273900',
+      likeCount: '9187',
+      commentCount: '256'
+    },
+    isEducational: true,
+    durationInSeconds: 892 // 14m 52s
+  },
+  {
+    id: 'react-todo-list',
+    snippet: {
+      title: 'Build a Todo List App in React | React Tutorial for Beginners',
+      description: 'Learn to build a simple todo list app in React while learning the fundamentals of React hooks like useState and useEffect.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/pCA4qpQDZD8/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/pCA4qpQDZD8/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/pCA4qpQDZD8/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'Web Dev Simplified',
+      channelId: 'UCFbNIlppjAuEX4znoulh0Cw',
+      publishedAt: '2020-10-15T13:00:16Z',
+      tags: ['react', 'todo list', 'hooks', 'useState', 'useEffect', 'web development', 'javascript', 'tutorial', 'project', 'education']
+    },
+    contentDetails: {
+      duration: 'PT20M31S'
+    },
+    statistics: {
+      viewCount: '354725',
+      likeCount: '8932',
+      commentCount: '421'
+    },
+    isEducational: true,
+    durationInSeconds: 1231 // 20m 31s
   }
-]; 
+];
+
+// Additional short educational videos for learning mode
+export const mockEducationalVideos: YouTubeVideo[] = [
+  {
+    id: 'eduVideo1',
+    snippet: {
+      title: 'HTML Basics in 5 Minutes',
+      description: 'Learn the basics of HTML in just 5 minutes. This quick tutorial covers the essential elements you need to know.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/qz0aGYrrlhU/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/qz0aGYrrlhU/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/qz0aGYrrlhU/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'Web Tutorials',
+      channelId: 'UCFbNIlppjAuEX4znoulh0Cw',
+      publishedAt: '2023-03-15T12:00:00Z',
+      tags: ['html', 'web development', 'tutorial', 'beginner', 'education', 'coding', 'short tutorial']
+    },
+    contentDetails: {
+      duration: 'PT4M45S'
+    },
+    statistics: {
+      viewCount: '127832',
+      likeCount: '12873',
+      commentCount: '432'
+    },
+    isEducational: true,
+    durationInSeconds: 285 // 4m 45s
+  },
+  {
+    id: 'eduVideo2',
+    snippet: {
+      title: 'CSS Flexbox in 3 Minutes',
+      description: 'Master CSS Flexbox layout in just 3 minutes with this quick and focused tutorial.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/K74l26pE4YA/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/K74l26pE4YA/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/K74l26pE4YA/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'Kevin Powell',
+      channelId: 'UCJZv4d5rbIKd4QHMPkcABCw',
+      publishedAt: '2023-02-10T10:15:00Z',
+      tags: ['css', 'flexbox', 'web development', 'quick tutorial', 'layout', 'education']
+    },
+    contentDetails: {
+      duration: 'PT3M20S'
+    },
+    statistics: {
+      viewCount: '98564',
+      likeCount: '8732',
+      commentCount: '243'
+    },
+    isEducational: true,
+    durationInSeconds: 200 // 3m 20s
+  },
+  {
+    id: 'eduVideo3',
+    snippet: {
+      title: 'JavaScript Arrow Functions Explained',
+      description: 'Learn all about arrow functions in JavaScript in under 5 minutes.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/h33Srr5J9nY/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/h33Srr5J9nY/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/h33Srr5J9nY/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'Web Dev Simplified',
+      channelId: 'UCFbNIlppjAuEX4znoulh0Cw',
+      publishedAt: '2023-01-05T14:30:00Z',
+      tags: ['javascript', 'arrow functions', 'es6', 'web development', 'programming', 'tutorial', 'education']
+    },
+    contentDetails: {
+      duration: 'PT4M15S'
+    },
+    statistics: {
+      viewCount: '112453',
+      likeCount: '9876',
+      commentCount: '325'
+    },
+    isEducational: true,
+    durationInSeconds: 255 // 4m 15s
+  },
+  {
+    id: 'eduVideo4',
+    snippet: {
+      title: 'Git Basics in 4 Minutes',
+      description: 'A quick tutorial on the most essential Git commands you need to know',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/HkdAHXoRtos/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/HkdAHXoRtos/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/HkdAHXoRtos/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'Code Academy',
+      channelId: 'UC8butISFwT-Wl7EV0hUK0BQ',
+      publishedAt: '2023-04-12T09:30:00Z',
+      tags: ['git', 'version control', 'programming', 'coding', 'tutorial', 'beginner', 'education']
+    },
+    contentDetails: {
+      duration: 'PT4M12S'
+    },
+    statistics: {
+      viewCount: '87652',
+      likeCount: '7123',
+      commentCount: '198'
+    },
+    isEducational: true,
+    durationInSeconds: 252 // 4m 12s
+  },
+  {
+    id: 'eduVideo5',
+    snippet: {
+      title: 'React Hooks in 5 Minutes',
+      description: 'Learn the basics of React Hooks including useState and useEffect in this quick tutorial for beginners.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/TNhaISOUy6Q/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/TNhaISOUy6Q/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/TNhaISOUy6Q/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'Web Dev Simplified',
+      channelId: 'UCFbNIlppjAuEX4znoulh0Cw',
+      publishedAt: '2023-05-18T14:30:00Z',
+      tags: ['react', 'hooks', 'useState', 'useEffect', 'tutorial', 'web development', 'javascript', 'education']
+    },
+    contentDetails: {
+      duration: 'PT4M45S'
+    },
+    statistics: {
+      viewCount: '147652',
+      likeCount: '9982',
+      commentCount: '231'
+    },
+    isEducational: true,
+    durationInSeconds: 285 // 4m 45s
+  },
+  {
+    id: 'eduVideo6',
+    snippet: {
+      title: 'Tailwind CSS Crash Course in 4 Minutes',
+      description: 'Get up to speed with Tailwind CSS basics in just 4 minutes. Learn the core concepts and utility-first approach.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/UBOj6rqRUME/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/UBOj6rqRUME/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/UBOj6rqRUME/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'TailwindLabs',
+      channelId: 'UCOe-8z68tgw9ioqVvYM4ddQ',
+      publishedAt: '2023-03-22T10:00:00Z',
+      tags: ['tailwind', 'css', 'tailwindcss', 'utility-first', 'web development', 'frontend', 'tutorial', 'education']
+    },
+    contentDetails: {
+      duration: 'PT3M58S'
+    },
+    statistics: {
+      viewCount: '98763',
+      likeCount: '7865',
+      commentCount: '184'
+    },
+    isEducational: true,
+    durationInSeconds: 238 // 3m 58s
+  },
+  {
+    id: 'eduVideo7',
+    snippet: {
+      title: 'TypeScript in 5 Minutes - Quick Start Guide',
+      description: 'A rapid introduction to TypeScript basics including types, interfaces, and how to set up a project.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/ahCwqrYpIuM/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/ahCwqrYpIuM/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/ahCwqrYpIuM/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'TypeScript Academy',
+      channelId: 'UCjFO_UfS8VlGnXcVJ5F7a1A',
+      publishedAt: '2023-04-05T16:45:00Z',
+      tags: ['typescript', 'javascript', 'types', 'interfaces', 'web development', 'programming', 'tutorial', 'education']
+    },
+    contentDetails: {
+      duration: 'PT4M52S'
+    },
+    statistics: {
+      viewCount: '112435',
+      likeCount: '8546',
+      commentCount: '203'
+    },
+    isEducational: true,
+    durationInSeconds: 292 // 4m 52s
+  },
+  {
+    id: 'eduVideo8',
+    snippet: {
+      title: 'Docker Containers Explained in 3 Minutes',
+      description: 'Learn the fundamentals of Docker containers and why they are so important in modern development.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/pGYAg7TMmp0/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/pGYAg7TMmp0/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/pGYAg7TMmp0/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'DevOps Directive',
+      channelId: 'UC4MdpjzjPuop_qWNAvR23JA',
+      publishedAt: '2023-02-10T11:30:00Z',
+      tags: ['docker', 'containers', 'devops', 'cloud', 'virtualization', 'tutorial', 'education']
+    },
+    contentDetails: {
+      duration: 'PT3M12S'
+    },
+    statistics: {
+      viewCount: '87452',
+      likeCount: '6234',
+      commentCount: '142'
+    },
+    isEducational: true,
+    durationInSeconds: 192 // 3m 12s
+  },
+  {
+    id: 'eduVideo9',
+    snippet: {
+      title: 'How to Build an API with Node.js in 5 Minutes',
+      description: 'Quick tutorial on building a simple REST API using Node.js and Express in just 5 minutes.',
+      thumbnails: {
+        default: { url: 'https://i.ytimg.com/vi/lsMQRaeKNDk/default.jpg', width: 120, height: 90 },
+        medium: { url: 'https://i.ytimg.com/vi/lsMQRaeKNDk/mqdefault.jpg', width: 320, height: 180 },
+        high: { url: 'https://i.ytimg.com/vi/lsMQRaeKNDk/hqdefault.jpg', width: 480, height: 360 }
+      },
+      channelTitle: 'Backend Basics',
+      channelId: 'UC8butISFwT-Wl7EV0hUK0BQ',
+      publishedAt: '2023-05-05T09:15:00Z',
+      tags: ['node.js', 'express', 'api', 'rest', 'backend', 'web development', 'tutorial', 'javascript', 'education']
+    },
+    contentDetails: {
+      duration: 'PT4M48S'
+    },
+    statistics: {
+      viewCount: '76543',
+      likeCount: '5487',
+      commentCount: '165'
+    },
+    isEducational: true,
+    durationInSeconds: 288 // 4m 48s
+  }
+];
+
+// Add educational videos to the main mock videos array
+mockVideos.push(...mockEducationalVideos);

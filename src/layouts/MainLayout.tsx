@@ -13,15 +13,20 @@ const MainLayout: React.FC = () => {
   // Check if we're on the watch page
   const isWatchPage = location.pathname.includes('/watch/');
   
-  // Detect mobile and close sidebar on mobile by default, and when on watch page
+  // Detect mobile and handle sidebar state
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
       
-      if (mobile || isWatchPage) {
+      if (mobile) {
+        // Close sidebar on mobile by default
         setSidebarOpen(false);
+      } else if (isWatchPage) {
+        // On watch page, minimize sidebar but don't close it completely
+        setSidebarOpen(window.innerWidth >= 1200); // Keep expanded on large screens even on watch page
       } else {
+        // For all other pages on desktop, always keep sidebar expanded
         setSidebarOpen(true);
       }
     };

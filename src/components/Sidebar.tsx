@@ -200,7 +200,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
               }
             >
               <Brain size={20} className="min-w-5 dark:text-white" />
-              <span className="ml-6 dark:text-white">Learning Dashboard</span>
+              <div className="ml-6 flex items-center">
+                <span className="dark:text-white">Learning Dashboard</span>
+                <span className="ml-2 text-xs font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-1.5 py-0.5 rounded-full animate-pulse">
+                  NEW
+                </span>
+              </div>
             </NavLink>
             
             <NavLink
@@ -228,17 +233,37 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
             </NavLink>
           </div>
         ) : (
-          <NavLink
-            to="/you"
-            className={({ isActive }) => 
-              `flex flex-col items-center justify-center h-16 px-3 py-2 mx-2 rounded-lg ${
-                isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`
-            }
-          >
-            <UserLucide size={20} className="mb-1 dark:text-white" />
-            <span className="text-[10px] dark:text-white">You</span>
-          </NavLink>
+          <>
+            <NavLink
+              to="/you"
+              className={({ isActive }) => 
+                `flex flex-col items-center justify-center h-16 px-3 py-2 mx-2 rounded-lg ${
+                  isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`
+              }
+            >
+              <UserLucide size={20} className="mb-1 dark:text-white" />
+              <span className="text-[10px] dark:text-white">You</span>
+            </NavLink>
+            
+            <NavLink
+              to="/learning"
+              className={({ isActive }) => 
+                `flex flex-col items-center justify-center h-16 px-3 py-2 mx-2 rounded-lg ${
+                  isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                } relative`
+              }
+            >
+              <Brain size={20} className="mb-1 dark:text-white" />
+              <span className="text-[10px] dark:text-white">Learning</span>
+              <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-blue-500 text-[8px] text-white items-center justify-center font-bold">
+                  NEW
+                </span>
+              </span>
+            </NavLink>
+          </>
         )}
         
         {/* Explore section */}
@@ -327,18 +352,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
             >
               <Trophy size={20} className="min-w-5 dark:text-white" />
               <span className="ml-6 dark:text-white">Sports</span>
-            </NavLink>
-            
-            <NavLink
-              to="/learning"
-              className={({ isActive }) => 
-                `flex items-center px-3 py-2 mx-2 rounded-lg ${
-                  isActive ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`
-              }
-            >
-              <Lightbulb size={20} className="min-w-5 dark:text-white" />
-              <span className="ml-6 dark:text-white">Learning</span>
             </NavLink>
           </div>
         )}
