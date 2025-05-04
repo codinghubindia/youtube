@@ -940,3 +940,116 @@ export const mockEducationalVideos: YouTubeVideo[] = [
 
 // Add educational videos to the main mock videos array
 mockVideos.push(...mockEducationalVideos);
+
+interface EducationalVideo {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  duration: string;
+  channel: string;
+}
+
+// Collection of real educational videos
+export const educationalVideos: EducationalVideo[] = [
+  {
+    id: 'w7ejDZ8SWv8',
+    title: 'React JS Course for Beginners - 2023 Tutorial',
+    description: 'Comprehensive React tutorial covering components, hooks, and modern practices',
+    category: 'Web Development',
+    duration: '11:55:27',
+    channel: 'freeCodeCamp.org'
+  },
+  {
+    id: 'bMknfKXIFA8',
+    title: 'React Course - Beginner\'s Tutorial for React JavaScript Library [2022]',
+    description: 'Learn React fundamentals, state management, and component architecture',
+    category: 'Web Development',
+    duration: '11:55:27',
+    channel: 'freeCodeCamp.org'
+  },
+  {
+    id: 'Rh3tobg7hEo',
+    title: 'React Hooks Course - All React Hooks Explained',
+    description: 'Deep dive into React hooks including useState, useEffect, and custom hooks',
+    category: 'Web Development',
+    duration: '3:00:46',
+    channel: 'PedroTech'
+  },
+  {
+    id: 'f55qeKGgB_M',
+    title: 'React Testing Library Tutorial',
+    description: 'Learn how to test React applications using React Testing Library',
+    category: 'Testing',
+    duration: '1:50:35',
+    channel: 'The Net Ninja'
+  },
+  {
+    id: '4UZrsTqkcW4',
+    title: 'Full React Course 2020 - Learn Fundamentals, Hooks, Context API, React Router, Custom Hooks',
+    description: 'Complete React course covering all essential concepts and advanced topics',
+    category: 'Web Development',
+    duration: '10:07:54',
+    channel: 'freeCodeCamp.org'
+  }
+];
+
+// Get a random educational video
+export const getRandomVideo = (): EducationalVideo => {
+  const randomIndex = Math.floor(Math.random() * educationalVideos.length);
+  return educationalVideos[randomIndex];
+};
+
+// Get video by ID
+export const getVideoById = (id: string): EducationalVideo | undefined => {
+  return educationalVideos.find(video => video.id === id);
+};
+
+// Get mock transcript for a video
+export const getMockTranscript = (videoId: string): string => {
+  const video = getVideoById(videoId);
+  
+  if (!video) {
+    return 'Transcript not available.';
+  }
+
+  // Return appropriate mock transcript based on video category
+  switch (video.category) {
+    case 'Web Development':
+      return `Welcome to this comprehensive tutorial on ${video.title}. 
+      
+Today we'll explore React.js fundamentals and best practices, starting with component architecture and how to structure your applications for scalability.
+
+We'll cover essential topics like:
+1. Component lifecycle and hooks
+2. State management patterns
+3. Performance optimization
+4. Error handling and debugging
+
+By the end of this video, you'll have a solid foundation in React development.`;
+    
+    case 'Testing':
+      return `Welcome to this tutorial on React Testing Library.
+
+We'll learn how to write effective tests for React applications, covering:
+1. Unit testing components
+2. Integration testing
+3. Mocking API calls
+4. Testing user interactions
+
+By following testing best practices, you'll be able to ensure your applications are reliable and maintainable.`;
+    
+    default:
+      return `Welcome to this tutorial on ${video.title}.
+
+We'll cover fundamental concepts and best practices, with practical examples and real-world applications.
+
+Key topics include:
+1. Core principles and concepts
+2. Best practices and patterns
+3. Common challenges and solutions
+4. Advanced techniques and optimizations
+
+By the end of this video, you'll have a comprehensive understanding of the subject matter.`;
+  }
+};

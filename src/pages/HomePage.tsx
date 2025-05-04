@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useYouTube } from '../context/YouTubeContext';
 import { useLearningMode } from '../context/LearningModeContext';
 import VideoCard from '../components/VideoCard';
+import HomeLearningGuide from '../components/HomeLearningGuide';
 import { formatDuration } from '../utils/formatUtils';
-import { Loader2, BookOpen, AlertCircle } from 'lucide-react';
+import { Loader2, BookOpen, AlertCircle, Brain, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { parseISO8601Duration } from '../utils/mockData';
 import { isYouTubeConfigured } from '../utils/env';
 import { VideoType } from '../data/videos';
@@ -11,9 +12,23 @@ import { YouTubeVideo } from '../utils/api';
 
 const HomePage: React.FC = () => {
   const { videos, loading, error, fetchVideos, loadMoreVideos } = useYouTube();
-  const { learningMode } = useLearningMode();
+  const { learningMode, sidebarVisible, toggleSidebar } = useLearningMode();
   const [page, setPage] = useState(1);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [isWideScreen, setIsWideScreen] = useState(window.innerWidth >= 1024);
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
+  const [chatMaximized, setChatMaximized] = useState(false);
+
+  // Handle responsive behavior
+  useEffect(() => {
+    const handleResize = () => {
+      setIsWideScreen(window.innerWidth >= 1024);
+      setIsMobileView(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Convert YouTubeVideo to VideoType
   const convertToVideoType = (video: YouTubeVideo): VideoType => ({
@@ -89,41 +104,87 @@ const HomePage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Initial loading state */}
-      {loading && videos.length === 0 && (
-        <div className="flex justify-center items-center min-h-[50vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-youtube-red" />
-        </div>
-      )}
+    <div className="flex min-h-screen">
+      {/* Main content */}
+      <div className={`flex-1 ${learningMode && sidebarVisible && isWideScreen ? 'mr-[350px]' : ''}`}>
+        <div className="container mx-auto px-4 py-8">
+          {/* Initial loading state */}
+          {loading && videos.length === 0 && (
+            <div className="flex justify-center items-center min-h-[50vh]">
+              <Loader2 className="h-8 w-8 animate-spin text-youtube-red" />
+            </div>
+          )}
 
-      {/* Videos grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {processedVideos.map((video) => (
-          <VideoCard key={video.id} video={convertToVideoType(video)} />
-        ))}
-      </div>
-
-      {/* No videos found message */}
-      {processedVideos.length === 0 && !loading && learningMode && (
-        <div className="p-8 text-center">
-          <BookOpen className="mx-auto text-youtube-red mb-4" size={48} />
-          <h3 className="text-xl font-semibold mb-2 dark:text-white">No educational videos found</h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            No short educational videos were found. Try disabling Learning Mode to see all videos.
-          </p>
-        </div>
-      )}
-
-      {/* Loading indicator for infinite scroll */}
-      <div ref={loadMoreRef} className="flex justify-center mt-8 pb-4">
-        {loading && videos.length > 0 && (
-          <div className="flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-gray-500 mr-2" />
-            <span className="text-gray-500 dark:text-gray-400">Loading more videos...</span>
+          {/* Videos grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {processedVideos.map((video) => (
+              <VideoCard key={video.id} video={convertToVideoType(video)} />
+            ))}
           </div>
-        )}
+
+          {/* No videos found message */}
+          {processedVideos.length === 0 && !loading && learningMode && (
+            <div className="p-8 text-center">
+              <BookOpen className="mx-auto text-youtube-red mb-4" size={48} />
+              <h3 className="text-xl font-semibold mb-2 dark:text-white">No educational videos found</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                No short educational videos were found. Try disabling Learning Mode to see all videos.
+              </p>
+            </div>
+          )}
+
+          {/* Loading indicator for infinite scroll */}
+          <div ref={loadMoreRef} className="flex justify-center mt-8 pb-4">
+            {loading && videos.length > 0 && (
+              <div className="flex items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-500 mr-2" />
+                <span className="text-gray-500 dark:text-gray-400">Loading more videos...</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Learning Mode Sidebar */}
+      {learningMode && sidebarVisible && (
+        <div 
+          className={`fixed ${isMobileView ? 'inset-x-0 bottom-0 z-50' : 
+            chatMaximized ? 'top-16 right-4 bottom-4 w-[450px] z-40' : 'top-16 right-4 w-[350px] h-[calc(100vh-5rem)] z-40'}`}
+        >
+          <div className={`bg-white dark:bg-gray-900 ${isMobileView ? 'rounded-t-xl' : 'rounded-xl'} shadow-xl flex flex-col h-full overflow-hidden border border-blue-200 dark:border-blue-800`}>
+            {/* Header with maximize and close buttons */}
+            <div className="bg-blue-600 dark:bg-blue-700 px-4 py-3 flex justify-between items-center">
+              <div className="flex items-center text-white space-x-2">
+                <Brain size={20} />
+                <h3 className="font-medium">Learning Assistant</h3>
+              </div>
+              <div className="flex items-center space-x-2">
+                {!isMobileView && (
+                  <button 
+                    onClick={() => setChatMaximized(!chatMaximized)}
+                    className="text-white p-1 rounded hover:bg-blue-700 transition-colors"
+                    title={chatMaximized ? "Minimize" : "Maximize"}
+                  >
+                    {chatMaximized ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+                  </button>
+                )}
+                <button 
+                  onClick={toggleSidebar}
+                  className="text-white p-1 rounded hover:bg-blue-700 transition-colors"
+                  title="Close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            
+            {/* Learning guide content */}
+            <div className="flex-1 overflow-hidden">
+              <HomeLearningGuide onClose={toggleSidebar} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

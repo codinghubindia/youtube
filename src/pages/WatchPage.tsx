@@ -28,18 +28,18 @@ const WatchPage: React.FC = () => {
   const [comments, setComments] = useState<YouTubeComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { learningMode, toggleLearningMode } = useLearningMode();
+  const { learningMode, sidebarVisible, toggleLearningMode, toggleSidebar } = useLearningMode();
   const videoPlayerRef = useRef<HTMLDivElement>(null);
   const [isWideScreen, setIsWideScreen] = useState(window.innerWidth >= 1024);
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
-  const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const [watchStartTime, setWatchStartTime] = useState<number | null>(null);
   const [watchDuration, setWatchDuration] = useState(0);
   const [watchProgressInterval, setWatchProgressInterval] = useState<number | null>(null);
   const [showComments, setShowComments] = useState(false);
   const [chatMaximized, setChatMaximized] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
-  // Handle responsive behavior
+  // Handle responsive behavior with learning mode
   useEffect(() => {
     const handleResize = () => {
       const wideScreen = window.innerWidth >= 1024;
@@ -47,32 +47,19 @@ const WatchPage: React.FC = () => {
       
       setIsWideScreen(wideScreen);
       setIsMobileView(mobileView);
-      
-      // Auto-show sidebar on desktop if in learning mode
-      if (learningMode && !mobileView) {
-        setIsSidebarVisible(true);
-      }
     };
     
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [learningMode]);
+  }, []);
 
-  // Show sidebar when toggling to learning mode
+  // Start tracking watch time when component mounts if learning mode is enabled
   useEffect(() => {
     if (learningMode) {
-      setIsSidebarVisible(true);
-      // Start tracking watch time when learning mode is enabled
       startWatchTimeTracking();
-    } else {
-      // Stop tracking if learning mode is disabled
-      stopWatchTimeTracking();
     }
-    // Get learning-based recommendations if learning mode is active
-    if (learningMode && video) {
-      fetchLearningRecommendations();
-    }
-  }, [learningMode, video]);
+    return () => stopWatchTimeTracking();
+  }, [learningMode]);
 
   // Track watch time
   const startWatchTimeTracking = () => {
@@ -234,6 +221,11 @@ const WatchPage: React.FC = () => {
     setChatMaximized(!chatMaximized);
   };
 
+  // Toggle description expansion
+  const toggleDescription = () => {
+    setIsDescriptionExpanded(!isDescriptionExpanded);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[70vh]">
@@ -258,7 +250,7 @@ const WatchPage: React.FC = () => {
   return (
     <div className="flex flex-col lg:flex-row w-full max-w-screen-2xl mx-auto gap-5 p-4 pb-16 relative">
       {/* Main content area */}
-      <div className={`flex-1 ${isSidebarVisible && isWideScreen ? 'max-w-[calc(100%-350px)]' : 'w-full'}`}>
+      <div className={`flex-1 ${sidebarVisible && isWideScreen ? 'max-w-[calc(100%-350px)]' : 'w-full'}`}>
         {/* Video player with shadow and rounded corners */}
         <div ref={videoPlayerRef} className="rounded-xl overflow-hidden shadow-lg bg-black">
           <div className="aspect-video w-full">
@@ -352,10 +344,15 @@ const WatchPage: React.FC = () => {
               <span>{formatTimeAgo(video.snippet.publishedAt)}</span>
             </div>
             
-            <p className="text-sm dark:text-white whitespace-pre-line">
-              {video.snippet.description.split('\n').slice(0, 3).join('\n')}
-              {video.snippet.description.split('\n').length > 3 && '...'}
-            </p>
+            <div className={`prose prose-sm dark:prose-invert max-w-none ${!isDescriptionExpanded ? 'max-h-28 overflow-hidden' : ''}`}>
+              <p className="whitespace-pre-wrap">{video.snippet.description}</p>
+            </div>
+            <button
+              onClick={toggleDescription}
+              className="mt-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              {isDescriptionExpanded ? 'Show less' : 'Show more'}
+            </button>
           </div>
           
           {/* Comment section toggle for mobile */}
@@ -462,14 +459,14 @@ const WatchPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Learning Mode Sidebar - now in a more modern floating card design */}
-      {isSidebarVisible && (
+      {/* Learning Mode Sidebar */}
+      {learningMode && sidebarVisible && (
         <div 
-          className={`fixed ${isMobileView ? 'bottom-0 left-0 right-0 z-50' : 
+          className={`fixed ${isMobileView ? 'inset-x-0 bottom-0 z-50' : 
             chatMaximized ? 'top-16 right-4 bottom-4 w-[450px] z-40' : 'bottom-4 right-4 w-[350px] h-[450px] z-40'}`}
         >
-          <div className={`bg-white dark:bg-gray-900 rounded-t-xl ${!isMobileView && 'rounded-b-xl'} shadow-xl flex flex-col h-full overflow-hidden`}>
-            {/* Header with close and maximize buttons */}
+          <div className={`bg-white dark:bg-gray-900 rounded-t-xl ${!isMobileView && 'rounded-b-xl'} shadow-xl flex flex-col h-full overflow-hidden border border-blue-200 dark:border-blue-800`}>
+            {/* Header with maximize and close buttons */}
             <div className="bg-blue-600 dark:bg-blue-700 px-4 py-3 flex justify-between items-center">
               <div className="flex items-center text-white space-x-2">
                 <Brain size={20} />
@@ -477,11 +474,19 @@ const WatchPage: React.FC = () => {
               </div>
               <div className="flex items-center space-x-2">
                 {!isMobileView && (
-                  <button onClick={toggleChatSize} className="text-white p-1 rounded hover:bg-blue-700">
+                  <button 
+                    onClick={() => setChatMaximized(!chatMaximized)}
+                    className="text-white p-1 rounded hover:bg-blue-700 transition-colors"
+                    title={chatMaximized ? "Minimize" : "Maximize"}
+                  >
                     {chatMaximized ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
                   </button>
                 )}
-                <button onClick={toggleLearningSidebar} className="text-white p-1 rounded hover:bg-blue-700">
+                <button 
+                  onClick={toggleSidebar}
+                  className="text-white p-1 rounded hover:bg-blue-700 transition-colors"
+                  title="Close"
+                >
                   <X size={18} />
                 </button>
               </div>
@@ -491,9 +496,9 @@ const WatchPage: React.FC = () => {
             <div className="flex-1 overflow-hidden">
               <LearningSidebar 
                 videoId={id || ''} 
-                videoTitle={video.snippet.title} 
-                isVisible={isSidebarVisible}
-                onClose={toggleLearningSidebar}
+                videoTitle={video?.snippet.title || ''}
+                isVisible={sidebarVisible}
+                onClose={toggleSidebar}
               />
             </div>
           </div>

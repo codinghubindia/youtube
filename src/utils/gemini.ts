@@ -257,29 +257,36 @@ export async function generateSummary(
   const videoUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : '';
   
   try {
-    const prompt = `As an educational content summarizer, create a clear and comprehensive summary of "${videoTitle}"${videoUrl ? ` (${videoUrl})` : ''}.
+    const prompt = `As an expert educational content analyzer, create a precise and relevant summary of the video titled "${videoTitle}"${videoUrl ? ` (${videoUrl})` : ''}.
 
-Format Requirements:
-- Exactly 6-8 bullet points
-- Each bullet must start with "•" (bullet point)
-- Each point should be a complete, self-contained concept
-- Points should progress logically from basic to advanced concepts
-- Keep each point between 15-30 words for readability
-- Focus on actionable insights and technical details
+Analysis Requirements:
+1. First, analyze if this is truly educational content. If not, respond with ["This video does not appear to be educational content."]
+2. Identify the main educational topic and learning objectives
+3. Focus only on the factual, educational content
+4. Ensure each point directly relates to the video's main topic
+
+Summary Format:
+- Create exactly 6-8 bullet points
+- Each point must start with "•"
+- Each point should be 15-30 words
+- Progress logically from basic to advanced concepts
+- Focus on actionable insights and key learnings
+- Include specific examples or data mentioned
 
 Content Guidelines:
-- Include key technical terms and their explanations
+- Capture the core educational message
+- Include key technical terms with brief explanations
+- Note important methodologies or techniques
 - Highlight practical applications
-- Note important techniques or methodologies
-- Include any best practices mentioned
-- Capture core concepts and their relationships
+- Emphasize memorable examples or analogies used
 
-Transcript to Summarize:
-${truncatedTranscript}`;
+Video Transcript:
+${truncatedTranscript}
+
+Remember: Stay focused on the educational value and ensure all points are directly related to "${videoTitle}".`;
 
     const summaryText = await callGeminiAPI(prompt);
     
-    // Check if we got an error message back
     if (summaryText.includes('encountered an issue') || summaryText.includes('No API key configured')) {
       return [
         'Unable to generate a summary at this time.',
@@ -294,18 +301,17 @@ ${truncatedTranscript}`;
       .map(line => line.replace(/^[•\-*]\s*/, '').trim())
       .filter(line => line.length > 0);
     
-    // If no bullet points were found, try to split by newlines
-    if (bulletPoints.length === 0) {
-      return summaryText
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0 && !line.startsWith('#'));
+    // If no bullet points were found or content is not educational
+    if (bulletPoints.length === 0 || bulletPoints[0].includes('does not appear to be educational')) {
+      return [
+        'This video appears to be entertainment content rather than educational.',
+        'Try watching videos focused on tutorials, courses, or educational topics.'
+      ];
     }
     
     return bulletPoints;
   } catch (error) {
     console.error('Error generating summary:', error);
-    // Return a friendly error message as the first bullet point
     return [
       'Unable to generate a summary at this time.',
       'Please try again later or contact support if the problem persists.'
@@ -332,57 +338,58 @@ export async function generateNotes(
   const videoUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : '';
   
   try {
-    const prompt = `You are an expert educational content creator specializing in detailed study notes.
+    const prompt = `As an expert educational content creator, transform this video titled "${videoTitle}"${videoUrl ? ` (${videoUrl})` : ''} into comprehensive study notes.
 
-Task: Transform this video lecture titled "${videoTitle}"${videoUrl ? ` (${videoUrl})` : ''} into comprehensive study notes.
+Initial Analysis:
+1. First, verify this is educational content
+2. Identify the main topic and learning objectives
+3. Determine the target knowledge level (beginner/intermediate/advanced)
+4. Note any prerequisites or required background knowledge
 
 Required Structure:
 1. Title and Overview
-   - Brief introduction
-   - Prerequisites
-   - Learning objectives
+   - Main topic and its importance
+   - Clear learning objectives
+   - Prerequisites if any
+   - Estimated time to learn
 
-2. Core Concepts
-   - Key concepts with definitions
-   - Examples
-   - Important terms in **bold**
+2. Key Concepts
+   - Core ideas with clear explanations
+   - Technical terms defined in context
+   - Important concepts in **bold**
+   - Visual descriptions or diagrams explained
 
-3. Implementation Details
-   - Step-by-step breakdown
-   - Code examples
-   - Important considerations
+3. Detailed Breakdown
+   - Step-by-step explanations
+   - Examples with context
+   - Code or technical details properly formatted
+   - Common misconceptions addressed
 
 4. Practical Applications
-   - Real-world examples
-   - Industry use cases
-   - Common scenarios
+   - Real-world examples from the video
+   - How to apply the knowledge
+   - Common use cases
+   - Industry relevance
 
-5. Best Practices
-   - Key recommendations
-   - Reasoning and examples
-   - Good vs bad approaches
-
-6. Common Pitfalls
-   - Potential issues
-   - How to identify them
-   - Solutions and prevention
-
-7. Additional Resources
-   - Documentation links
-   - Tutorials
-   - Tools and further reading
+5. Summary and Review
+   - Main takeaways
+   - Quick reference points
+   - Next steps for learning
+   - Related topics to explore
 
 Format Requirements:
-1. Use semantic HTML structure (<h1>, <h2>, <h3>, <p>, <ul>, <li>, etc.)
-2. Keep paragraphs concise (2-3 sentences max)
+1. Use semantic HTML (<h1>, <h2>, <h3>, <p>, <ul>, <li>)
+2. Keep paragraphs focused (2-3 sentences)
 3. Use lists for multiple related points
-4. Include code examples in <pre><code> blocks
-5. Highlight important terms with <strong> tags
-6. Maintain consistent spacing between sections
-7. Use proper indentation for readability
+4. Format code in <pre><code> blocks
+5. Bold important terms with <strong>
+6. Maintain clear section spacing
+7. Use proper indentation
 
-Here's the video transcript to analyze:
-${truncatedTranscript}`;
+Video Transcript:
+${truncatedTranscript}
+
+Note: Focus on accuracy and educational value. If the content is not educational, respond with a message indicating that.`;
 
     const notesHtml = await callGeminiAPI(prompt);
     
@@ -397,6 +404,22 @@ ${truncatedTranscript}`;
     <li>Named the environment variable VITE_GEMINI_API_KEY</li>
   </ul>
   <p>Once configured, please refresh the page and try again.</p>
+</div>`;
+    }
+
+    // Check if content is not educational
+    if (notesHtml.toLowerCase().includes('not educational content')) {
+      return `
+<div class="warning-message">
+  <h1>Entertainment Content Detected</h1>
+  <p>This video appears to be entertainment rather than educational content.</p>
+  <p>For the best learning experience:</p>
+  <ul>
+    <li>Try watching tutorials or course videos</li>
+    <li>Look for content with clear learning objectives</li>
+    <li>Choose videos that teach specific skills or concepts</li>
+  </ul>
+  <p>Learning Mode works best with educational content focused on teaching and learning.</p>
 </div>`;
     }
     
@@ -445,39 +468,56 @@ export async function getChatResponse(
 Student Question: "${userQuestion}"
 
 Response Requirements:
-1. Direct Answer
-   - Start with a clear, concise answer to the question
-   - Use simple language and avoid jargon
-   - If code is needed, keep it minimal and well-commented
+1. Structure your response in this format:
 
-2. Detailed Explanation
-   - Break down complex concepts
-   - Use analogies when helpful
-   - Provide step-by-step explanations
+   a) Direct Answer Section
+      - Begin with a clear, concise answer
+      - Use <h3>Direct Answer</h3> as the section header
+      - Keep it to 2-3 sentences maximum
+      - Use <strong> tags for key terms
 
-3. Examples
-   - Include relevant examples
-   - Use code snippets if applicable
-   - Connect to real-world scenarios
+   b) Detailed Explanation Section
+      - Use <h3>Detailed Explanation</h3> as the section header
+      - Break complex concepts into bullet points
+      - Use analogies when helpful
+      - Include step-by-step explanations if relevant
+      - Format each point as a list item
 
-4. Key Points
-   - Highlight important concepts
-   - Use bullet points for clarity
-   - Bold key terms
+   c) Examples Section (if applicable)
+      - Use <h3>Examples</h3> as the section header
+      - Include practical examples
+      - Use <pre><code> for code snippets
+      - Show real-world applications
+      - Format as a numbered list if multiple examples
 
-5. Next Steps
-   - Suggest related topics
-   - Recommend resources
-   - Encourage further learning
+   d) Key Points Section
+      - Use <h3>Key Points</h3> as the section header
+      - List 3-5 most important takeaways
+      - Use bullet points
+      - Bold essential terms
+      - Keep each point concise
 
-Format Requirements:
-1. Use semantic HTML (<p>, <ul>, <li>, <code>, etc.)
-2. Keep paragraphs short and focused
-3. Use lists for multiple points
-4. Format code with <pre><code> blocks
-5. Highlight terms with <strong> tags
-6. Maintain consistent spacing
-7. Use proper indentation
+   e) Next Steps Section
+      - Use <h3>Further Learning</h3> as the section header
+      - Suggest related topics
+      - Recommend resources
+      - Keep it brief and actionable
+
+2. Formatting Guidelines:
+   - Use proper HTML tags (<p>, <ul>, <li>, <code>, etc.)
+   - Keep paragraphs short (2-3 sentences)
+   - Use consistent spacing between sections
+   - Indent nested lists properly
+   - Use semantic HTML structure
+   - Format code examples cleanly
+   - Maintain professional but conversational tone
+
+3. Visual Structure:
+   - Start with a welcoming greeting
+   - Use clear section headers
+   - Include white space between sections
+   - End with an encouraging note
+   - Keep overall response concise and readable
 
 Video Context:
 ${truncatedTranscript}`;
@@ -492,7 +532,9 @@ ${truncatedTranscript}`;
 </div>`;
     }
     
-    return formatHtmlContent(responseText);
+    // Add wrapper div for consistent styling with notes section
+    const formattedResponse = formatHtmlContent(responseText);
+    return `<div class="chat-response prose prose-sm max-w-none dark:prose-invert">${formattedResponse}</div>`;
     
   } catch (error) {
     console.error('Error generating chat response:', error);
