@@ -11,9 +11,8 @@ import { VideoType } from '../data/videos';
 import { YouTubeVideo } from '../utils/api';
 
 const HomePage: React.FC = () => {
-  const { videos, loading, error, fetchVideos, loadMoreVideos } = useYouTube();
+  const { videos, loading, error, fetchVideos, loadMoreVideos, hasMoreVideos } = useYouTube();
   const { learningMode, sidebarVisible, toggleSidebar } = useLearningMode();
-  const [page, setPage] = useState(1);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [isWideScreen, setIsWideScreen] = useState(window.innerWidth >= 1024);
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
@@ -63,34 +62,52 @@ const HomePage: React.FC = () => {
 
   // Load initial videos
   useEffect(() => {
-    // Check if YouTube API is configured
-    if (!isYouTubeConfigured()) {
-      console.warn('YouTube API is not configured - using mock data');
-    }
-    // Fetch educational videos only if learning mode is enabled
-    fetchVideos(false, 1, learningMode);
-  }, [fetchVideos, learningMode]); // Add learningMode to dependencies
+    let mounted = true;
+
+    const loadVideos = async () => {
+      // Check if YouTube API is configured
+      if (!isYouTubeConfigured()) {
+        console.warn('YouTube API is not configured - using mock data');
+      }
+      // Fetch educational videos only if learning mode is enabled
+      if (mounted) {
+        await fetchVideos(false, 1, learningMode);
+      }
+    };
+
+    loadVideos();
+
+    return () => {
+      mounted = false;
+    };
+  }, [fetchVideos, learningMode]);
 
   // Handle infinite scroll
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
+        // Only trigger if element is intersecting and we're not already loading
         if (entries[0].isIntersecting && !loading) {
-          setPage((prevPage) => {
-            const nextPage = prevPage + 1;
-            loadMoreVideos(learningMode);
-            return nextPage;
-          });
+          loadMoreVideos(learningMode);
         }
       },
-      { threshold: 1.0 }
+      { 
+        threshold: 0.1,  // Reduced threshold
+        rootMargin: '100px' // Add some margin to trigger before reaching the very bottom
+      }
     );
 
-    if (loadMoreRef.current) {
+    // Only observe if we have a ref and we're not loading
+    if (loadMoreRef.current && !loading) {
       observer.observe(loadMoreRef.current);
     }
 
-    return () => observer.disconnect();
+    return () => {
+      if (loadMoreRef.current) {
+        observer.unobserve(loadMoreRef.current);
+      }
+      observer.disconnect();
+    };
   }, [loading, loadMoreVideos, learningMode]);
 
   if (error) {
@@ -134,14 +151,16 @@ const HomePage: React.FC = () => {
           )}
 
           {/* Loading indicator for infinite scroll */}
-          <div ref={loadMoreRef} className="flex justify-center mt-8 pb-4">
-            {loading && videos.length > 0 && (
-              <div className="flex items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-gray-500 mr-2" />
-                <span className="text-gray-500 dark:text-gray-400">Loading more videos...</span>
-              </div>
-            )}
-          </div>
+          {hasMoreVideos && (
+            <div ref={loadMoreRef} className="flex justify-center mt-8 pb-4">
+              {loading && (
+                <div className="flex items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-gray-500 mr-2" />
+                  <span className="text-gray-500 dark:text-gray-400">Loading more videos...</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

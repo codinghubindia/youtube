@@ -51,6 +51,7 @@ export const YouTubeProvider: React.FC<{ children: ReactNode }> = ({ children })
     channelTitle: '',
     thumbnailUrl: ''
   });
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
 
   // Save search history to localStorage
   useEffect(() => {
@@ -87,16 +88,15 @@ export const YouTubeProvider: React.FC<{ children: ReactNode }> = ({ children })
   const fetchVideos = useCallback(async (isSearch = false, page = 1, educational = false) => {
     setLoading(true);
     setError(null);
-    setIsEducationalMode(educational);
+    setIsEducationalMode(() => educational);
     
     try {
       const pageSize = 12;
-      let fetchedVideos;
+      let response;
       
       if (isSearch && searchQuery.trim()) {
-        setIsSearchActive(true);
+        setIsSearchActive(() => true);
         
-        // Add to search history if it's a new search
         if (page === 1 && !searchHistory.includes(searchQuery)) {
           setSearchHistory(prev => {
             const newHistory = [searchQuery, ...prev.slice(0, 9)];
@@ -104,64 +104,109 @@ export const YouTubeProvider: React.FC<{ children: ReactNode }> = ({ children })
           });
         }
         
-        fetchedVideos = await searchVideos(searchQuery, pageSize);
+        response = await searchVideos(searchQuery, pageSize);
       } else if (educational) {
-        setIsSearchActive(false);
-        fetchedVideos = await getEducationalVideos(pageSize);
+        setIsSearchActive(() => false);
+        response = await getEducationalVideos(pageSize);
       } else {
-        setIsSearchActive(false);
-        fetchedVideos = await getPopularVideos(pageSize);
+        setIsSearchActive(() => false);
+        response = await getPopularVideos(pageSize);
       }
       
-      // Check if we got any videos
+      const { videos: fetchedVideos, nextPageToken: newPageToken } = response;
+      
       if (!fetchedVideos || fetchedVideos.length === 0) {
         setError('No videos found. Please try again later.');
-        setHasMoreVideos(false);
+        setHasMoreVideos(() => false);
         return;
       }
       
-      // Check if we have more videos to load
-      setHasMoreVideos(fetchedVideos.length >= pageSize);
+      setNextPageToken(newPageToken);
+      setHasMoreVideos(() => !!newPageToken);
       
       if (page === 1) {
-        // First page, replace existing videos
-        setVideos(fetchedVideos || []);
-        setCurrentPage(1);
+        setVideos(() => fetchedVideos || []);
+        setCurrentPage(() => 1);
       } else {
-        // Subsequent pages, append new videos
         setVideos(prevVideos => {
-          // Filter out duplicates by ID
           const existingIds = new Set(prevVideos.map(v => v.id));
           const newVideos = fetchedVideos.filter(v => !existingIds.has(v.id));
           
-          // If no new videos were loaded, we've reached the end
           if (newVideos.length === 0) {
-            setHasMoreVideos(false);
+            setHasMoreVideos(() => false);
           }
           
           return [...prevVideos, ...newVideos];
         });
-        setCurrentPage(page);
+        setCurrentPage(() => page);
       }
     } catch (err) {
       console.error('Error fetching videos:', err);
       setError('Failed to fetch videos. Using mock data instead.');
-      setHasMoreVideos(false);
+      setHasMoreVideos(() => false);
       
-      // Return mock data on error
-      const mockData = await getEducationalVideos(12);
-      setVideos(mockData);
+      const { videos: mockData } = await getEducationalVideos(12);
+      setVideos(() => mockData);
     } finally {
-      setLoading(false);
+      setLoading(() => false);
     }
   }, [searchQuery, searchHistory]);
 
   const loadMoreVideos = useCallback(async (educational = false) => {
-    if (loading || !hasMoreVideos) return;
-    // Use the educational mode from state if it's not explicitly passed
+    if (loading || !hasMoreVideos || !nextPageToken) return;
+    
     const useEducational = educational !== undefined ? educational : isEducationalMode;
-    await fetchVideos(isSearchActive, currentPage + 1, useEducational);
-  }, [loading, hasMoreVideos, fetchVideos, isSearchActive, currentPage, isEducationalMode]);
+    
+    const handleFetch = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const pageSize = 12;
+        let response;
+        
+        if (isSearchActive && searchQuery.trim()) {
+          response = await searchVideos(searchQuery, pageSize, nextPageToken);
+        } else if (useEducational) {
+          response = await getEducationalVideos(pageSize, nextPageToken);
+        } else {
+          response = await getPopularVideos(pageSize, nextPageToken);
+        }
+        
+        const { videos: fetchedVideos, nextPageToken: newPageToken } = response;
+        
+        if (!fetchedVideos || fetchedVideos.length === 0) {
+          setHasMoreVideos(false);
+          return;
+        }
+        
+        setNextPageToken(newPageToken);
+        setHasMoreVideos(!!newPageToken);
+        
+        setVideos(prevVideos => {
+          const existingIds = new Set(prevVideos.map(v => v.id));
+          const newVideos = fetchedVideos.filter(v => !existingIds.has(v.id));
+          
+          if (newVideos.length === 0) {
+            setHasMoreVideos(false);
+            return prevVideos;
+          }
+          
+          return [...prevVideos, ...newVideos];
+        });
+        
+        setCurrentPage(prev => prev + 1);
+      } catch (err) {
+        console.error('Error loading more videos:', err);
+        setError('Failed to load more videos');
+        setHasMoreVideos(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    await handleFetch();
+  }, [loading, hasMoreVideos, nextPageToken, currentPage, isSearchActive, searchQuery, isEducationalMode]);
 
   const showMiniPlayer = useCallback((videoId: string, title: string, channelTitle: string, thumbnailUrl: string) => {
     setMiniPlayer({

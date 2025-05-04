@@ -24,6 +24,11 @@ class ErrorBoundary extends Component<Props, State> {
     console.error('Error caught by ErrorBoundary:', error, errorInfo);
   }
 
+  componentWillUnmount() {
+    // Clean up any potential DOM references
+    this.setState({ hasError: false, error: undefined });
+  }
+
   render(): ReactNode {
     if (this.state.hasError) {
       // Fallback UI when an error occurs

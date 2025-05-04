@@ -10,6 +10,7 @@ const MainLayout: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const location = useLocation();
   const { darkMode, miniPlayer, hideMiniPlayer } = useYouTube();
+  const [isUnmounting, setIsUnmounting] = useState(false);
   
   // Check if we're on the watch page
   const isWatchPage = location.pathname.includes('/watch/');
@@ -36,9 +37,14 @@ const MainLayout: React.FC = () => {
     window.addEventListener('resize', handleResize);
     
     return () => {
+      setIsUnmounting(true);
       window.removeEventListener('resize', handleResize);
+      // Ensure MiniPlayer is hidden when unmounting
+      if (miniPlayer.active) {
+        hideMiniPlayer();
+      }
     };
-  }, [isWatchPage]);
+  }, [isWatchPage, miniPlayer.active, hideMiniPlayer]);
   
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);

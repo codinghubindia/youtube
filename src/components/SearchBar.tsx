@@ -31,11 +31,14 @@ const SearchBar: React.FC = () => {
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+    // Only add listener if suggestions or history is shown
+    if (showSuggestions || showHistory) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showSuggestions, showHistory]);
 
   // Fetch suggestions when input changes
   useEffect(() => {

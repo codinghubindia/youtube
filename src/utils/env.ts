@@ -84,7 +84,9 @@ export const isYouTubeConfigured = () => {
 
 export const isGeminiConfigured = () => {
   const hasValidKeys = ENV.GEMINI_API_KEYS.length > 0;
-  if (isDev) {
+  
+  // Only log in dev mode and only once per session
+  if (isDev && !window.localStorage.getItem('gemini_config_logged')) {
     if (!hasValidKeys) {
       console.warn('Gemini API is not configured. Please add a valid API key to your .env file.');
     } else {
@@ -93,7 +95,9 @@ export const isGeminiConfigured = () => {
         console.log(`Gemini API Key ${index + 1}: ${key.slice(0, 8)}...${key.slice(-4)}`);
       });
     }
+    window.localStorage.setItem('gemini_config_logged', 'true');
   }
+  
   return hasValidKeys;
 };
 

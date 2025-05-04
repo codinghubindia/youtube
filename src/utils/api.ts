@@ -1,6 +1,8 @@
 import { YOUTUBE_API_BASE_URL, ENDPOINTS, ACTIVE_API_KEYS, ENV } from './env';
 import { mockVideos, shuffleVideos, mockEducationalVideos } from './mockData';
 
+const API_BASE_URL = process.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+
 // Add quota and key tracking system
 interface QuotaManager {
   dailyQuotaLimit: number;
@@ -17,6 +19,27 @@ interface SearchResult {
   id: {
     videoId: string;
   };
+}
+
+interface YouTubeApiError {
+  code: number;
+  message: string;
+  errors: Array<{
+    message: string;
+    domain: string;
+    reason: string;
+  }>;
+  status: string;
+}
+
+interface YouTubeApiResponse {
+  items?: YouTubeVideo[];
+  error?: YouTubeApiError;
+  nextPageToken?: string;
+}
+
+interface RequestOptions {
+  signal?: AbortSignal;
 }
 
 // Initialize quota from localStorage or with defaults
@@ -309,16 +332,55 @@ export interface YouTubeComment {
   };
 }
 
-// Get user's region code automatically
-const getUserRegion = async (): Promise<string> => {
-  try {
-    const response = await fetch('https://ipapi.co/json/');
-    const data = await response.json();
-    return data.country_code || 'US';
-  } catch (err) {
-    console.error('Error getting user region:', err);
-    return 'US'; // Default to US if region detection fails
+// Get user's region code
+export const getUserRegion = async (): Promise<string> => {
+  // Try multiple IP geolocation services with fallbacks
+  const geoServices = [
+    'https://api.ipapi.com/api/check?access_key=YOUR_API_KEY', // Replace with your API key if using
+    'https://api.ipify.org?format=json',
+    'https://ipapi.co/json/',
+    'https://ip-api.com/json'
+  ];
+
+  for (const service of geoServices) {
+    try {
+      const response = await fetch(service, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+        // Add mode: 'cors' for services that support it
+        mode: service.includes('ipapi.co') ? 'no-cors' : 'cors'
+      });
+
+      // For no-cors responses, just return default 'US'
+      if (response.type === 'opaque') {
+        return 'US';
+      }
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const data = await response.json();
+      
+      // Handle different response formats from different services
+      const countryCode = 
+        data.country_code || // ipapi.co format
+        data.countryCode || // ip-api.com format
+        data.country || // some other services
+        'US'; // fallback
+
+      return countryCode.toUpperCase();
+    } catch (err) {
+      console.warn(`Failed to get region from ${service}:`, err);
+      continue;
+    }
   }
+
+  // If all services fail, return default
+  console.warn('All geolocation services failed, using default region code: US');
+  return 'US';
 };
 
 // Helper function to construct URL with parameters
@@ -338,17 +400,17 @@ const createUrl = (endpoint: string, params: Record<string, string | number | bo
   return url.toString();
 };
 
-// Get educational videos - this is a new function specifically for education content
-export const getEducationalVideos = async (maxResults = 16) => {
+// Get educational videos
+export const getEducationalVideos = async (maxResults = 16, pageToken?: string) => {
   // Check if we have any API keys configured
   if (ACTIVE_API_KEYS.length === 0) {
     console.log('No YouTube API keys configured - using mock data');
-    return shuffleVideos(mockEducationalVideos).slice(0, maxResults);
+    return { videos: shuffleVideos(mockEducationalVideos).slice(0, maxResults), nextPageToken: null };
   }
 
   // Check quota before making request
   if (trackApiUsage(ENDPOINTS.SEARCH)) {
-    return shuffleVideos(mockEducationalVideos).slice(0, maxResults);
+    return { videos: shuffleVideos(mockEducationalVideos).slice(0, maxResults), nextPageToken: null };
   }
   
   try {
@@ -374,16 +436,22 @@ export const getEducationalVideos = async (maxResults = 16) => {
     // Try with each API key until one works or we run out
     while (!apiCallSuccess && retryCount < ACTIVE_API_KEYS.length) {
       try {
-        const url = createUrl(ENDPOINTS.SEARCH, {
+        const params: Record<string, string | number | boolean> = {
           part: 'snippet',
           maxResults: maxResults * 2, // Request more to account for filtering
           q: randomTopic,
           type: 'video',
-          videoDuration: 'short', // Only get videos under 4 minutes
+          videoDuration: 'short',
           relevanceLanguage: 'en',
           safeSearch: 'strict',
           order: 'relevance'
-        });
+        };
+
+        if (pageToken) {
+          params.pageToken = pageToken;
+        }
+
+        const url = createUrl(ENDPOINTS.SEARCH, params);
         
         const response = await fetch(url);
         data = await response.json();
@@ -411,7 +479,7 @@ export const getEducationalVideos = async (maxResults = 16) => {
     }
     
     if (!apiCallSuccess) {
-      return shuffleVideos(mockEducationalVideos).slice(0, maxResults);
+      return { videos: shuffleVideos(mockEducationalVideos).slice(0, maxResults), nextPageToken: null };
     }
     
     // If we have search results, get the full video details for each
@@ -429,7 +497,7 @@ export const getEducationalVideos = async (maxResults = 16) => {
         
         if (videoData.error) {
           console.error('Error fetching video details:', videoData.error);
-          return shuffleVideos(mockEducationalVideos).slice(0, maxResults);
+          return { videos: shuffleVideos(mockEducationalVideos).slice(0, maxResults), nextPageToken: null };
         }
 
         // Process and filter videos
@@ -456,18 +524,20 @@ export const getEducationalVideos = async (maxResults = 16) => {
                  video.durationInSeconds <= 300;
         });
 
-        // Return filtered and limited results
-        return processedVideos.slice(0, maxResults);
+        return { 
+          videos: processedVideos.slice(0, maxResults),
+          nextPageToken: data.nextPageToken || null
+        };
       } catch (err) {
         console.error('Error fetching video details:', err);
-        return shuffleVideos(mockEducationalVideos).slice(0, maxResults);
+        return { videos: shuffleVideos(mockEducationalVideos).slice(0, maxResults), nextPageToken: null };
       }
     }
     
-    return shuffleVideos(mockEducationalVideos).slice(0, maxResults);
+    return { videos: shuffleVideos(mockEducationalVideos).slice(0, maxResults), nextPageToken: null };
   } catch (err) {
     console.error('Error fetching educational videos:', err);
-    return shuffleVideos(mockEducationalVideos).slice(0, maxResults);
+    return { videos: shuffleVideos(mockEducationalVideos).slice(0, maxResults), nextPageToken: null };
   }
 };
 
@@ -497,84 +567,100 @@ const isEducationalContent = (video: YouTubeVideo): boolean => {
 };
 
 // Get popular videos
-export const getPopularVideos = async (maxResults = 16) => {
+export const getPopularVideos = async (maxResults = 16, pageToken?: string) => {
   // Check quota before making request
   if (trackApiUsage(ENDPOINTS.VIDEOS)) {
     console.log('Using shuffled mock data (quota limit approaching or all API keys failed)');
-    return shuffleVideos(mockVideos).slice(0, maxResults);
+    return { videos: shuffleVideos(mockVideos).slice(0, maxResults), nextPageToken: null };
   }
   
   try {
-    // Get user's region
-    const regionCode = await getUserRegion();
-    
-    // Track this request (before making it)
-    if (trackApiUsage(ENDPOINTS.VIDEOS)) {
-      return shuffleVideos(mockVideos).slice(0, maxResults);
+    // Get user's region with fallback
+    let regionCode = 'US'; // Default to US if region detection fails
+    try {
+      regionCode = await getUserRegion();
+    } catch (err) {
+      console.warn('Failed to get user region, using default US:', err);
     }
     
     let apiCallSuccess = false;
     let retryCount = 0;
-    let data;
+    let data: YouTubeApiResponse = { items: [] };
     
     // Try with each API key until one works or we run out
     while (!apiCallSuccess && retryCount < ACTIVE_API_KEYS.length) {
       try {
-        const url = createUrl(ENDPOINTS.VIDEOS, {
+        const currentKey = getCurrentApiKey();
+        if (!currentKey) {
+          console.warn('No valid API key available, using mock data');
+          return { videos: shuffleVideos(mockVideos).slice(0, maxResults), nextPageToken: null };
+        }
+
+        // Add pageToken to the request if provided
+        const params: Record<string, string | number | boolean> = {
           part: 'snippet,contentDetails,statistics',
           chart: 'mostPopular',
           maxResults,
-          regionCode,
-          videoCategoryId: '27' // Education category
-        });
+          regionCode
+        };
+        
+        if (pageToken) {
+          params.pageToken = pageToken;
+        }
+
+        const url = createUrl(ENDPOINTS.VIDEOS, params);
         
         const response = await fetch(url);
-        data = await response.json();
+        data = await response.json() as YouTubeApiResponse;
         
-        // Check for quota errors
-        if (data.error && (data.error.code === 403 || data.error.message?.includes('quota'))) {
-          console.warn(`YouTube API quota exceeded for key, trying next key...`);
-          handleApiKeyFailure(getCurrentApiKey());
+        // Check for any type of error
+        if (data.error) {
+          console.error(`YouTube API error with key ${currentKey.slice(0, 8)}...:`, data.error);
+          handleApiKeyFailure(currentKey);
           retryCount++;
           continue;
         }
         
-        // Check for other errors
-        if (data.error) {
-          console.error('YouTube API error:', data.error);
-          handleApiKeyFailure(getCurrentApiKey());
+        // Check if we got valid items
+        if (!data.items || data.items.length === 0) {
+          console.warn(`No videos returned with key ${currentKey.slice(0, 8)}..., trying next key`);
           retryCount++;
           continue;
         }
         
         apiCallSuccess = true;
-      } catch (err) {
-        console.error('Error fetching videos with current API key:', err);
+        console.log(`Successfully fetched videos with key ${currentKey.slice(0, 8)}...`);
+      } catch (error: unknown) {
+        console.error('Error fetching videos with current API key:', error);
+        handleApiKeyFailure(getCurrentApiKey());
         retryCount++;
       }
     }
     
-    if (!apiCallSuccess) {
-      console.warn('All API keys failed, using mock data');
-      return shuffleVideos(mockVideos).slice(0, maxResults);
+    if (!apiCallSuccess || !data?.items?.length) {
+      console.warn('All API keys failed or no videos returned, using mock data');
+      return { videos: shuffleVideos(mockVideos).slice(0, maxResults), nextPageToken: null };
     }
     
-    return data.items as YouTubeVideo[] || [];
-  } catch (err) {
-    console.error('Error fetching popular videos:', err);
-    return shuffleVideos(mockVideos).slice(0, maxResults);
+    return { 
+      videos: data.items as YouTubeVideo[],
+      nextPageToken: data.nextPageToken || null
+    };
+  } catch (error: unknown) {
+    console.error('Error fetching popular videos:', error);
+    return { videos: shuffleVideos(mockVideos).slice(0, maxResults), nextPageToken: null };
   }
 };
 
 // Search videos
-export const searchVideos = async (query: string, maxResults = 16) => {
+export const searchVideos = async (query: string, maxResults = 16, pageToken?: string) => {
   // Check quota before making request
   if (trackApiUsage(ENDPOINTS.SEARCH)) {
     console.log('Using mock data for search (quota limit approaching)');
     const filteredVideos = mockVideos.filter((video: YouTubeVideo) => 
       video.snippet.title.toLowerCase().includes(query.toLowerCase())
     );
-    return filteredVideos.slice(0, maxResults);
+    return { videos: filteredVideos.slice(0, maxResults), nextPageToken: null };
   }
   
   try {
@@ -583,15 +669,21 @@ export const searchVideos = async (query: string, maxResults = 16) => {
       const filteredVideos = mockVideos.filter((video: YouTubeVideo) => 
         video.snippet.title.toLowerCase().includes(query.toLowerCase())
       );
-      return filteredVideos.slice(0, maxResults);
+      return { videos: filteredVideos.slice(0, maxResults), nextPageToken: null };
     }
     
-    const url = createUrl(ENDPOINTS.SEARCH, {
+    const params: Record<string, string | number | boolean> = {
       part: 'snippet',
       maxResults,
       q: query,
-      type: 'video',
-    });
+      type: 'video'
+    };
+
+    if (pageToken) {
+      params.pageToken = pageToken;
+    }
+
+    const url = createUrl(ENDPOINTS.SEARCH, params);
     
     const response = await fetch(url);
     const data = await response.json();
@@ -603,7 +695,7 @@ export const searchVideos = async (query: string, maxResults = 16) => {
       const filteredVideos = mockVideos.filter((video: YouTubeVideo) => 
         video.snippet.title.toLowerCase().includes(query.toLowerCase())
       );
-      return filteredVideos.slice(0, maxResults);
+      return { videos: filteredVideos.slice(0, maxResults), nextPageToken: null };
     }
     
     // Check for other errors
@@ -612,371 +704,200 @@ export const searchVideos = async (query: string, maxResults = 16) => {
       const filteredVideos = mockVideos.filter((video: YouTubeVideo) => 
         video.snippet.title.toLowerCase().includes(query.toLowerCase())
       );
-      return filteredVideos.slice(0, maxResults);
+      return { videos: filteredVideos.slice(0, maxResults), nextPageToken: null };
     }
     
     // Get video IDs from search results
     const videoIds = data.items?.map((item: SearchResult) => item.id.videoId).join(',');
     
-    if (!videoIds) return [];
+    if (!videoIds) {
+      return { videos: [], nextPageToken: null };
+    }
     
     // Get full video details
-    return getVideoDetails(videoIds);
+    const videoDetails = await getVideoDetails(videoIds);
+    return { 
+      videos: videoDetails,
+      nextPageToken: data.nextPageToken || null
+    };
   } catch (err) {
     console.error('Error searching videos:', err);
     const filteredVideos = mockVideos.filter((video: YouTubeVideo) => 
       video.snippet.title.toLowerCase().includes(query.toLowerCase())
     );
-    return filteredVideos.slice(0, maxResults);
+    return { videos: filteredVideos.slice(0, maxResults), nextPageToken: null };
   }
 };
 
-// Get video details by ID
-export const getVideoDetails = async (videoId: string) => {
+// Get video details
+export const getVideoDetails = async (videoId: string, options?: RequestOptions): Promise<YouTubeVideo[]> => {
   if (!videoId) return [];
   
   // Check quota before making request
   if (trackApiUsage(ENDPOINTS.VIDEOS)) {
     console.log('Using mock data for video details (quota limit approaching)');
-    if (videoId.includes(',')) {
-      // Multiple IDs
-      const ids = videoId.split(',');
-      return mockVideos.filter((video: YouTubeVideo) => ids.includes(video.id));
-    } else {
-      // Single ID
-      return mockVideos.filter((video: YouTubeVideo) => video.id === videoId);
-    }
+    return mockVideos.filter((video: YouTubeVideo) => video.id === videoId);
   }
   
   try {
-    // Track this request (cost is 1 unit per video, so count how many videos we're requesting)
-    const videoCount = videoId.includes(',') ? videoId.split(',').length : 1;
-    // We need to track this cost for each video ID
-    for (let i = 0; i < videoCount; i++) {
-      if (trackApiUsage(ENDPOINTS.VIDEOS)) {
-        if (videoId.includes(',')) {
-          const ids = videoId.split(',');
-          return mockVideos.filter((video: YouTubeVideo) => ids.includes(video.id));
-        } else {
-          return mockVideos.filter((video: YouTubeVideo) => video.id === videoId);
-        }
-      }
-    }
-    
-    const url = createUrl(ENDPOINTS.VIDEOS, {
-      part: 'snippet,contentDetails,statistics',
-      id: videoId,
-    });
-    
-    const response = await fetch(url);
+    const response = await fetch(
+      `${YOUTUBE_API_BASE_URL}/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${getCurrentApiKey()}`,
+      { signal: options?.signal }
+    );
     const data = await response.json();
     
     // Check for quota errors
     if (data.error && data.error.code === 403) {
       console.warn('YouTube API quota exceeded, using mock data instead');
       handleApiKeyFailure(getCurrentApiKey());
-      if (videoId.includes(',')) {
-        // Multiple IDs
-        const ids = videoId.split(',');
-        return mockVideos.filter((video: YouTubeVideo) => ids.includes(video.id));
-      } else {
-        // Single ID
-        return mockVideos.filter((video: YouTubeVideo) => video.id === videoId);
-      }
-    }
-    
-    // Check for other errors
-    if (data.error) {
-      console.error('YouTube API error:', data.error);
-      if (videoId.includes(',')) {
-        // Multiple IDs
-        const ids = videoId.split(',');
-        return mockVideos.filter((video: YouTubeVideo) => ids.includes(video.id));
-      } else {
-        // Single ID
-        return mockVideos.filter((video: YouTubeVideo) => video.id === videoId);
-      }
-    }
-    
-    return data.items as YouTubeVideo[] || [];
-  } catch (err) {
-    console.error('Error fetching video details:', err);
-    if (videoId.includes(',')) {
-      // Multiple IDs
-      const ids = videoId.split(',');
-      return mockVideos.filter((video: YouTubeVideo) => ids.includes(video.id));
-    } else {
-      // Single ID
       return mockVideos.filter((video: YouTubeVideo) => video.id === videoId);
     }
+    
+    return data.items || [];
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw error;
+    }
+    console.error('Error fetching video details:', error);
+    return mockVideos.filter((video: YouTubeVideo) => video.id === videoId);
   }
 };
 
 // Get channel details
-export const getChannelDetails = async (channelId: string) => {
-  if (!channelId) return null;
-  
-  // Check quota before making request
-  if (trackApiUsage(ENDPOINTS.CHANNELS)) {
-    return {
-      id: channelId,
-      snippet: {
-        title: `Channel ${channelId}`,
-        description: 'This is a mock channel description.',
-        thumbnails: {
-          default: { url: `https://ui-avatars.com/api/?name=Channel&background=random`, width: 88, height: 88 },
-          medium: { url: `https://ui-avatars.com/api/?name=Channel&background=random&size=240`, width: 240, height: 240 },
-          high: { url: `https://ui-avatars.com/api/?name=Channel&background=random&size=800`, width: 800, height: 800 }
-        }
-      },
-      statistics: {
-        subscriberCount: '1000000',
-        videoCount: '500',
-        viewCount: '25000000'
-      }
-    } as YouTubeChannel;
-  }
-  
+export const getChannelDetails = async (channelId: string, options?: RequestOptions): Promise<YouTubeChannel | null> => {
   try {
-    // Track this request
-    if (trackApiUsage(ENDPOINTS.CHANNELS)) {
-      return {
-        id: channelId,
-        snippet: {
-          title: `Channel ${channelId}`,
-          description: 'This is a mock channel description.',
-          thumbnails: {
-            default: { url: `https://ui-avatars.com/api/?name=Channel&background=random`, width: 88, height: 88 },
-            medium: { url: `https://ui-avatars.com/api/?name=Channel&background=random&size=240`, width: 240, height: 240 },
-            high: { url: `https://ui-avatars.com/api/?name=Channel&background=random&size=800`, width: 800, height: 800 }
-          }
-        },
-        statistics: {
-          subscriberCount: '1000000',
-          videoCount: '500',
-          viewCount: '25000000'
-        }
-      } as YouTubeChannel;
-    }
-    
-    const url = createUrl(ENDPOINTS.CHANNELS, {
-      part: 'snippet,statistics,brandingSettings',
-      id: channelId,
-    });
-    
-    const response = await fetch(url);
+    const response = await fetch(
+      `${YOUTUBE_API_BASE_URL}/channels?part=snippet,statistics&id=${channelId}&key=${getCurrentApiKey()}`,
+      { signal: options?.signal }
+    );
     const data = await response.json();
-    
-    // Check for quota errors
-    if (data.error && data.error.code === 403) {
-      console.warn('YouTube API quota exceeded, using mock data instead');
-      handleApiKeyFailure(getCurrentApiKey());
-      return {
-        id: channelId,
-        snippet: {
-          title: `Channel ${channelId}`,
-          description: 'This is a mock channel description.',
-          thumbnails: {
-            default: { url: `https://ui-avatars.com/api/?name=Channel&background=random`, width: 88, height: 88 },
-            medium: { url: `https://ui-avatars.com/api/?name=Channel&background=random&size=240`, width: 240, height: 240 },
-            high: { url: `https://ui-avatars.com/api/?name=Channel&background=random&size=800`, width: 800, height: 800 }
-          }
-        },
-        statistics: {
-          subscriberCount: '1000000',
-          videoCount: '500',
-          viewCount: '25000000'
-        }
-      } as YouTubeChannel;
+    return data.items?.[0] || null;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw error;
     }
-    
-    // Check for other errors
-    if (data.error) {
-      console.error('YouTube API error:', data.error);
-      return null;
-    }
-    
-    return data.items?.[0] as YouTubeChannel || null;
-  } catch (err) {
-    console.error('Error fetching channel details:', err);
+    console.error('Error fetching channel details:', error);
     return null;
   }
 };
 
 // Get video comments
-export const getVideoComments = async (videoId: string, maxResults = 20) => {
-  if (!videoId) return [];
-  
-  // Check quota before making request
-  if (trackApiUsage(ENDPOINTS.COMMENTS)) {
-    return Array.from({ length: maxResults }, (_, i) => ({
-      id: `comment-${i}`,
-      snippet: {
-        topLevelComment: {
-          snippet: {
-            authorDisplayName: `User ${i + 1}`,
-            authorProfileImageUrl: `https://ui-avatars.com/api/?name=User+${i + 1}&background=random`,
-            textDisplay: `This is a mock comment number ${i + 1}. Great video!`,
-            publishedAt: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-            likeCount: Math.floor(Math.random() * 100)
-          }
-        },
-        totalReplyCount: Math.floor(Math.random() * 5)
-      }
-    })) as YouTubeComment[];
-  }
-  
+export const getVideoComments = async (videoId: string, options?: RequestOptions): Promise<YouTubeComment[]> => {
   try {
-    // Track this request
-    if (trackApiUsage(ENDPOINTS.COMMENTS)) {
-      return Array.from({ length: maxResults }, (_, i) => ({
-        id: `comment-${i}`,
-        snippet: {
-          topLevelComment: {
-            snippet: {
-              authorDisplayName: `User ${i + 1}`,
-              authorProfileImageUrl: `https://ui-avatars.com/api/?name=User+${i + 1}&background=random`,
-              textDisplay: `This is a mock comment number ${i + 1}. Great video!`,
-              publishedAt: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-              likeCount: Math.floor(Math.random() * 100)
-            }
-          },
-          totalReplyCount: Math.floor(Math.random() * 5)
-        }
-      })) as YouTubeComment[];
-    }
-    
-    const url = createUrl(ENDPOINTS.COMMENTS, {
-      part: 'snippet',
-      videoId,
-      maxResults,
-    });
-    
-    const response = await fetch(url);
+    const response = await fetch(
+      `${YOUTUBE_API_BASE_URL}/commentThreads?part=snippet&videoId=${videoId}&maxResults=20&key=${getCurrentApiKey()}`,
+      { signal: options?.signal }
+    );
     const data = await response.json();
-    
-    // Check for quota errors
-    if (data.error && data.error.code === 403) {
-      console.warn('YouTube API quota exceeded, using mock data instead');
-      handleApiKeyFailure(getCurrentApiKey());
-      return Array.from({ length: maxResults }, (_, i) => ({
-        id: `comment-${i}`,
-        snippet: {
-          topLevelComment: {
-            snippet: {
-              authorDisplayName: `User ${i + 1}`,
-              authorProfileImageUrl: `https://ui-avatars.com/api/?name=User+${i + 1}&background=random`,
-              textDisplay: `This is a mock comment number ${i + 1}. Great video!`,
-              publishedAt: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-              likeCount: Math.floor(Math.random() * 100)
-            }
-          },
-          totalReplyCount: Math.floor(Math.random() * 5)
-        }
-      })) as YouTubeComment[];
+    return data.items || [];
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw error;
     }
-    
-    // Check for other errors
-    if (data.error) {
-      console.error('YouTube API error:', data.error);
-      return [];
-    }
-    
-    return data.items as YouTubeComment[] || [];
-  } catch (err) {
-    console.error('Error fetching video comments:', err);
+    console.error('Error fetching video comments:', error);
     return [];
   }
 };
 
 // Get related videos
-export async function getRelatedVideos(videoId: string, maxResults = 10): Promise<YouTubeVideo[]> {
-  if (!videoId || typeof videoId !== 'string' || videoId.length < 5) {
-    console.warn('Invalid video ID provided to getRelatedVideos');
-    return getMockRelatedVideos();
+export const getRelatedVideos = async (videoId: string, options?: RequestOptions): Promise<YouTubeVideo[]> => {
+  // Check quota before making request
+  if (trackApiUsage(ENDPOINTS.SEARCH)) {
+    console.log('Using mock data for related videos (quota limit approaching)');
+    return mockVideos.slice(0, 10);
   }
 
   try {
-    const apiKey = getCurrentApiKey();
-    if (!apiKey) {
-      console.warn('No valid API key available - using mock data');
-      return getMockRelatedVideos();
-    }
+    const url = createUrl(ENDPOINTS.SEARCH, {
+      part: 'snippet',
+      relatedToVideoId: videoId,
+      type: 'video',
+      maxResults: 10
+    });
 
-    const response = await fetch(
-      `${YOUTUBE_API_BASE_URL}/search?part=snippet&relatedToVideoId=${videoId}&type=video&maxResults=${maxResults}&key=${apiKey}`,
-      { method: 'GET' }
-    );
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.warn('YouTube API error:', error);
-      
-      // If the video ID is invalid, use mock data
-      if (error.error?.errors?.some((e: any) => e.reason === 'invalidVideoId')) {
-        console.warn('Invalid video ID or request, using mock data');
-        return getMockRelatedVideos();
-      }
-      
-      throw new Error(`YouTube API error: ${error.error?.message || 'Unknown error'}`);
-    }
-
+    const response = await fetch(url, { signal: options?.signal });
     const data = await response.json();
-    return data.items.map(transformVideoResponse);
-  } catch (error) {
-    console.error('Error fetching related videos:', error);
-    return getMockRelatedVideos();
-  }
-}
 
-// Helper function to get mock related videos
-function getMockRelatedVideos(): YouTubeVideo[] {
-  return shuffleVideos(mockVideos).slice(0, 10);
-}
-
-// Transform YouTube API response to our VideoType
-function transformVideoResponse(item: any): YouTubeVideo {
-  const defaultThumbnail = {
-    url: item.snippet.thumbnails.default?.url || '',
-    width: item.snippet.thumbnails.default?.width || 120,
-    height: item.snippet.thumbnails.default?.height || 90
-  };
-
-  const mediumThumbnail = {
-    url: item.snippet.thumbnails.medium?.url || '',
-    width: item.snippet.thumbnails.medium?.width || 320,
-    height: item.snippet.thumbnails.medium?.height || 180
-  };
-
-  const highThumbnail = {
-    url: item.snippet.thumbnails.high?.url || '',
-    width: item.snippet.thumbnails.high?.width || 480,
-    height: item.snippet.thumbnails.high?.height || 360
-  };
-
-  return {
-    id: item.id.videoId,
-    snippet: {
-      title: item.snippet.title,
-      description: item.snippet.description,
-      thumbnails: {
-        default: defaultThumbnail,
-        medium: mediumThumbnail,
-        high: highThumbnail
-      },
-      channelId: item.snippet.channelId,
-      channelTitle: item.snippet.channelTitle,
-      publishedAt: item.snippet.publishedAt
-    },
-    contentDetails: {
-      duration: 'PT0S' // Will be populated by getVideoDetails
-    },
-    statistics: {
-      viewCount: '0', // Will be populated by getVideoDetails
-      likeCount: '0', // Will be populated by getVideoDetails
-      commentCount: '0' // Will be populated by getVideoDetails
+    // Check for quota errors
+    if (data.error && data.error.code === 403) {
+      console.warn('YouTube API quota exceeded, using mock data instead');
+      handleApiKeyFailure(getCurrentApiKey());
+      return mockVideos.slice(0, 10);
     }
-  };
-}
+
+    // Check for other errors
+    if (data.error) {
+      console.error('YouTube API error:', data.error);
+      return mockVideos.slice(0, 10);
+    }
+
+    // Get video IDs from search results
+    const videoIds = data.items?.map((item: SearchResult) => item.id.videoId).join(',');
+    
+    if (!videoIds) {
+      console.warn('No related videos found, using mock data');
+      return mockVideos.slice(0, 10);
+    }
+
+    // Get full video details
+    const videoDetails = await getVideoDetails(videoIds);
+    return videoDetails;
+
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw error;
+    }
+    console.error('Error fetching related videos:', error);
+    return mockVideos.slice(0, 10);
+  }
+};
+
+// Get transcript
+export const getTranscript = async (videoId: string): Promise<string> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/transcript/${videoId}`);
+    const data = await response.json();
+    return data.transcript || '';
+  } catch (error) {
+    console.error('Error fetching transcript:', error);
+    return '';
+  }
+};
+
+// Generate summary
+export const generateSummary = async (transcriptText: string, videoTitle: string, videoId: string): Promise<string[]> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/summary`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ transcript: transcriptText, title: videoTitle, videoId }),
+    });
+    const data = await response.json();
+    return data.summary || [];
+  } catch (error) {
+    console.error('Error generating summary:', error);
+    return [];
+  }
+};
+
+// Generate notes
+export const generateNotes = async (transcriptText: string, videoTitle: string, videoId: string): Promise<string> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/notes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ transcript: transcriptText, title: videoTitle, videoId }),
+    });
+    const data = await response.json();
+    return data.notes || '';
+  } catch (error) {
+    console.error('Error generating notes:', error);
+    return '';
+  }
+};
 
 // ... rest of the code ...

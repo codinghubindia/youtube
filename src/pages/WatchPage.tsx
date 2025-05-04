@@ -39,7 +39,7 @@ const WatchPage: React.FC = () => {
   const [chatMaximized, setChatMaximized] = useState(true);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
-  // Handle responsive behavior with learning mode
+  // Update useEffect to maintain visibility
   useEffect(() => {
     const handleResize = () => {
       const wideScreen = window.innerWidth >= 1024;
@@ -50,15 +50,26 @@ const WatchPage: React.FC = () => {
     };
     
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      // Cleanup any pending state updates
+      setIsWideScreen(false);
+      setIsMobileView(false);
+    };
   }, []);
 
   // Start tracking watch time when component mounts if learning mode is enabled
   useEffect(() => {
-    if (learningMode) {
+    let mounted = true;
+    
+    if (learningMode && mounted) {
       startWatchTimeTracking();
     }
-    return () => stopWatchTimeTracking();
+    
+    return () => {
+      mounted = false;
+      stopWatchTimeTracking();
+    };
   }, [learningMode]);
 
   // Track watch time
@@ -153,7 +164,11 @@ const WatchPage: React.FC = () => {
     };
   }, [watchProgressInterval, watchStartTime]);
 
+  // Fetch video data with proper cleanup
   useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+    
     const fetchVideoData = async () => {
       if (!id) return;
       
@@ -161,50 +176,67 @@ const WatchPage: React.FC = () => {
       setError(null);
       
       try {
-        // Fetch video details
-        const videoData = await getVideoDetails(id);
+        // Fetch video details with abort signal
+        const videoData = await getVideoDetails(id, { signal: controller.signal });
+        if (!mounted) return;
+        
         if (videoData && videoData.length > 0) {
           setVideo(videoData[0]);
           
+          // Only proceed if component is still mounted
+          if (!mounted) return;
+          
           // Fetch channel details
           const channelId = videoData[0].snippet.channelId;
-          const channelData = await getChannelDetails(channelId);
+          const channelData = await getChannelDetails(channelId, { signal: controller.signal });
+          if (!mounted) return;
           setChannel(channelData);
           
           // Fetch related videos
-          const relatedVideosData = await getRelatedVideos(id);
+          const relatedVideosData = await getRelatedVideos(id, { signal: controller.signal });
+          if (!mounted) return;
           
           // Convert related videos to VideoType format
           const converted = relatedVideosData.map(convertToVideoType);
           setConvertedRelatedVideos(converted);
           
           // Fetch comments
-          const commentsData = await getVideoComments(id);
+          const commentsData = await getVideoComments(id, { signal: controller.signal });
+          if (!mounted) return;
           setComments(commentsData);
         } else {
-          setError('Video not found');
+          if (mounted) setError('Video not found');
         }
       } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
         console.error('Error fetching video data:', err);
-        setError('Failed to load video data. Please try again later.');
+        if (mounted) setError('Failed to load video data. Please try again later.');
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
     
     // Scroll to top when video changes
     window.scrollTo(0, 0);
     fetchVideoData();
+    
+    return () => {
+      mounted = false;
+      controller.abort();
+      // Cleanup state
+      setVideo(null);
+      setChannel(null);
+      setConvertedRelatedVideos([]);
+      setComments([]);
+      setLoading(false);
+      setError(null);
+    };
   }, [id]);
-
-
 
   // Toggle comment section visibility
   const toggleComments = () => {
     setShowComments(!showComments);
   };
-
-
 
   // Toggle description expansion
   const toggleDescription = () => {
