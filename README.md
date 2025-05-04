@@ -96,7 +96,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Thanks to Google for the Gemini API
 - YouTube for inspiration
 - All contributors and supporters
-
-## Screenshots
-
-[Add screenshots of your application here] 
