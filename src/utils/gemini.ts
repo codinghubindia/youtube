@@ -1,5 +1,5 @@
 // Google Gemini API integration for AI-generated content
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ENV } from './env';
 
 
@@ -138,38 +138,78 @@ const handleModelFailure = (model: string): boolean => {
   return apiState.failedModels.length < 3; // 3 models total
 };
 
+// Define error interface for better type checking
+interface GeminiError extends Error {
+  message: string;
+  code?: string;
+  details?: unknown;
+}
+
 /**
  * Helper function to make API calls to Google Gemini
  * @param prompt The text prompt to send to the model
  * @returns The generated text response
  */
 async function callGeminiAPI(prompt: string): Promise<string> {
-  // Get API key from environment
-  const apiKey = ENV.GEMINI_API_KEYS[0]; // Use first key for simplicity
+  const apiKey = getCurrentApiKey();
   
   if (!apiKey) {
-    throw new Error('No Gemini API key available. Please add a valid API key to your environment variables.');
+    console.warn('No Gemini API key available - falling back to default response');
+    return 'No API key configured. Please add a valid Gemini API key to your environment variables.';
   }
 
   try {
-    // Initialize the Gemini API client
-    const genAI = new GoogleGenAI({ apiKey });
-
-    // Generate content
-    const result = await genAI.models.generateContent({
-      model: GEMINI_MODELS.PRIMARY,
-      contents: [{ text: prompt }]
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const modelName = getCurrentModel();
+    const model = genAI.getGenerativeModel({ 
+      model: modelName,
+      generationConfig: {
+        temperature: 0.7,
+        topP: 0.95,
+        topK: 40,
+        maxOutputTokens: 2048,
+      }
     });
 
-    // Get the response text from the first candidate
-    const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!responseText) {
-      throw new Error('Empty response from model');
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (attempts < maxAttempts) {
+      try {
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const responseText = response.text();
+        
+        if (!responseText) {
+          throw new Error('Empty response from model');
+        }
+
+        return responseText;
+      } catch (error) {
+        const geminiError = error as GeminiError;
+        console.warn(`Attempt ${attempts + 1} failed:`, geminiError);
+        
+        const errorMessage = geminiError.message.toLowerCase();
+        if (errorMessage.includes('quota') || errorMessage.includes('rate limit')) {
+          handleApiKeyFailure(apiKey);
+          break;
+        }
+        
+        if (errorMessage.includes('model')) {
+          handleModelFailure(modelName);
+          break;
+        }
+        
+        attempts++;
+        if (attempts === maxAttempts) {
+          throw error;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+      }
     }
 
-    return responseText;
-
+    throw new Error('Failed to generate content after multiple attempts');
   } catch (error) {
     console.error('Error calling Gemini API:', error);
     throw error;
@@ -202,47 +242,10 @@ export const extractVideoId = (url: string): string | null => {
 };
 
 /**
- * Helper function to clean and format HTML content
- */
-function formatHtmlContent(content: string): string {
-  return content
-    // Convert markdown-style bold to HTML
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    // Ensure code blocks are properly formatted
-    .replace(/```(\w+)?\n([\s\S]*?)\n```/g, (_, lang, code) => {
-      // Remove extra indentation while preserving code structure
-      const lines = code.split('\n');
-      const indent = lines[0].match(/^\s*/)[0];
-      const cleanedCode = lines.map((line: string) => line.replace(new RegExp(`^${indent}`), '')).join('\n');
-      return `<pre><code>${cleanedCode.trim()}</code></pre>`;
-    })
-    // Convert single backticks to inline code
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    // Ensure proper spacing around headings
-    .replace(/<h([1-6])>/g, '\n<h$1>')
-    .replace(/<\/h([1-6])>/g, '</h$1>\n')
-    // Fix list spacing
-    .replace(/<\/(ul|ol)>\s*<(ul|ol)>/g, '</$1>\n<$2>')
-    .replace(/<\/li>\s*<li>/g, '</li>\n<li>')
-    // Clean up excessive newlines
-    .replace(/\n{3,}/g, '\n\n')
-    // Fix paragraph spacing
-    .replace(/<\/p>\s*<p>/g, '</p>\n<p>')
-    // Ensure proper indentation for nested lists
-    .replace(/(<[uo]l>.*?<\/[uo]l>)/gs, list => {
-      return list.replace(/<li>/g, '  <li>');
-    })
-    // Clean up any remaining excessive whitespace
-    .replace(/\s+</g, '<')
-    .replace(/>\s+/g, '>')
-    .trim();
-}
-
-/**
  * Generate a summary of a video transcript using Google Gemini API
  * @param transcript Video transcript text
  * @param videoTitle Title of the video
- * @param videoId YouTube video ID for reference
+ * @param videoId YouTube video ID - used to create video reference URL in the prompt
  * @returns Array of bullet points summarizing the content
  */
 export async function generateSummary(
@@ -250,49 +253,54 @@ export async function generateSummary(
   videoTitle: string,
   videoId?: string
 ): Promise<string[]> {
+  // Handle empty transcript
+  if (!transcript || transcript.trim().length === 0) {
+    return [
+      'No transcript available to generate summary.',
+      'Please try a different video or check if captions are available.'
+    ];
+  }
+
   const truncatedTranscript = transcript.length > 15000 
     ? transcript.slice(0, 15000) + "... [transcript truncated for length]"
     : transcript;
   
+  // Include video URL in prompt if videoId is provided
   const videoUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : '';
+  const videoReference = videoId ? ` (Reference: ${videoUrl})` : '';
   
   try {
-    const prompt = `As an expert educational content analyzer, create a precise and relevant summary of the video titled "${videoTitle}"${videoUrl ? ` (${videoUrl})` : ''}.
+    const prompt = `As an expert in technical education and programming tutorials, analyze and summarize this video titled "${videoTitle}"${videoReference}.
 
-Analysis Requirements:
-1. First, analyze if this is truly educational content. If not, respond with ["This video does not appear to be educational content."]
-2. Identify the main educational topic and learning objectives
-3. Focus only on the factual, educational content
-4. Ensure each point directly relates to the video's main topic
+First, determine if this is educational content. This video IS educational if it matches ANY of these criteria:
+1. Programming/Coding tutorials or explanations
+2. Technical concepts or technology explanations
+3. Framework/Library tutorials (React, Angular, Vue, etc.)
+4. Development tools or practices
+5. Step-by-step instructions or walkthroughs
+6. Code demonstrations or examples
+7. Best practices or design patterns
+8. Quick tips or short-form technical lessons
+9. Any form of structured learning content
 
-Summary Format:
-- Create exactly 6-8 bullet points
-- Each point must start with "•"
-- Each point should be 15-30 words
-- Progress logically from basic to advanced concepts
-- Focus on actionable insights and key learnings
-- Include specific examples or data mentioned
+Even if the video is short (like "React Hooks in 5 Minutes"), it's still educational if it teaches something specific.
 
-Content Guidelines:
-- Capture the core educational message
-- Include key technical terms with brief explanations
-- Note important methodologies or techniques
-- Highlight practical applications
-- Emphasize memorable examples or analogies used
+If the content is educational (which includes ALL programming tutorials), provide 4-6 bullet points summarizing:
+- The main concept or technology being taught
+- Key points or steps explained
+- Important code examples or syntax shown
+- Practical applications or use cases
+- Best practices or tips mentioned
+
+If the content is truly NOT educational (like vlogs, entertainment, or non-instructional content), respond with exactly:
+["This video does not appear to be educational content."]
 
 Video Transcript:
 ${truncatedTranscript}
 
-Remember: Stay focused on the educational value and ensure all points are directly related to "${videoTitle}".`;
+Remember: Programming tutorials, technical explanations, and developer tips ARE educational content, regardless of length.`;
 
     const summaryText = await callGeminiAPI(prompt);
-    
-    if (summaryText.includes('encountered an issue') || summaryText.includes('No API key configured')) {
-      return [
-        'Unable to generate a summary at this time.',
-        'Please check your API key configuration and try again later.'
-      ];
-    }
     
     // Process the response to extract bullet points
     const bulletPoints = summaryText
@@ -302,18 +310,54 @@ Remember: Stay focused on the educational value and ensure all points are direct
       .filter(line => line.length > 0);
     
     // If no bullet points were found or content is not educational
-    if (bulletPoints.length === 0 || bulletPoints[0].includes('does not appear to be educational')) {
+    if (bulletPoints.length === 0 || 
+        summaryText.toLowerCase().includes('does not appear to be educational')) {
+      // Check title for common educational keywords
+      const educationalKeywords = [
+        'tutorial', 'guide', 'learn', 'how to', 'introduction',
+        'react', 'angular', 'vue', 'javascript', 'python',
+        'programming', 'coding', 'development', 'tips', 'tricks',
+        'basics', 'fundamentals', 'course', 'lesson'
+      ];
+      
+      const titleLower = videoTitle.toLowerCase();
+      const isLikelyEducational = educationalKeywords.some(keyword => 
+        titleLower.includes(keyword.toLowerCase())
+      );
+      
+      if (isLikelyEducational) {
+        return [
+          `Main Topic: ${videoTitle}`,
+          'This appears to be a technical tutorial or educational content.',
+          'The transcript might need more processing. Please try refreshing or checking the video captions.',
+          `You can watch the video here: ${videoUrl || 'URL not available'}`
+        ];
+      }
+      
       return [
         'This video appears to be entertainment content rather than educational.',
-        'Try watching videos focused on tutorials, courses, or educational topics.'
+        'For better learning experience, try watching videos focused on tutorials, courses, or educational topics.',
+        `Video Title: "${videoTitle}"${videoReference}`
       ];
     }
     
+    // Ensure we have at least some bullet points
+    if (bulletPoints.length < 3) {
+      const formattedPoints = [
+        `Topic: ${videoTitle}`,
+        ...bulletPoints,
+        'Note: This is a brief educational video. For more depth, consider watching longer tutorials on this topic.',
+        `Reference: ${videoUrl || 'URL not available'}`
+      ];
+      return formattedPoints;
+    }
+    
     return bulletPoints;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error generating summary:', error);
     return [
       'Unable to generate a summary at this time.',
+      'This could be due to API limits or service availability.',
       'Please try again later or contact support if the problem persists.'
     ];
   }
@@ -323,7 +367,7 @@ Remember: Stay focused on the educational value and ensure all points are direct
  * Generate comprehensive study notes from a video transcript using Google Gemini API
  * @param transcript Video transcript text
  * @param videoTitle Title of the video
- * @param videoId YouTube video ID for reference
+ * @param videoId YouTube video ID - used to create video reference URL in the prompt
  * @returns HTML-formatted study notes
  */
 export async function generateNotes(
@@ -400,8 +444,8 @@ ${transcript}`;
 
     const notesHtml = await callGeminiAPI(prompt);
     return notesHtml;
-  } catch (error) {
-    // Return a nicely formatted error message
+  } catch (error: unknown) {
+    console.error('Error generating notes:', error);
     return `
 <div class="study-notes error">
   <div class="note-header">
@@ -425,7 +469,7 @@ ${transcript}`;
  * @param userQuestion User's question text
  * @param transcript Video transcript for context
  * @param videoTitle Title of the video
- * @param videoId YouTube video ID for reference
+ * @param videoId YouTube video ID - used for context and reference
  * @returns HTML-formatted AI-generated response
  */
 export async function getChatResponse(
@@ -482,8 +526,8 @@ Question: "${userQuestion}"`;
 
     const response = await callGeminiAPI(prompt);
     return response;
-  } catch (error) {
-    // Return a friendly error message
+  } catch (error: unknown) {
+    console.error('Error in chat response:', error);
     return `
 <div class="chat-message">
   <div class="greeting">
@@ -497,51 +541,6 @@ Question: "${userQuestion}"`;
   </div>
 </div>`;
   }
-}
-
-/**
- * Convert markdown-like text to basic HTML
- * @param text Text with markdown-like formatting
- * @returns HTML-formatted text
- */
-function convertToHtml(text: string): string {
-  let html = text;
-  
-  // Handle code blocks
-  html = html.replace(/```(\w+)?\n([\s\S]*?)\n```/g, '<pre><code>$2</code></pre>');
-  
-  // Handle inline code
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-  
-  // Handle headings (# Heading 1, ## Heading 2, etc.)
-  html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
-  html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
-  html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
-  
-  // Handle bold and italic
-  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-  
-  // Handle lists
-  const listItemRegex = /^[*-] (.*?)$/gm;
-  if (listItemRegex.test(html)) {
-    // Replace each list item
-    html = html.replace(listItemRegex, '<li>$1</li>');
-    // Wrap with ul tags
-    html = html.replace(/<li>(.*?)(<li>|$)/gs, '<ul><li>$1</ul>$2');
-  }
-  
-  // Handle paragraphs - split by double newlines and wrap in p tags
-  const paragraphs = html.split(/\n\n+/);
-  html = paragraphs.map(p => {
-    // Skip if already has HTML tags
-    if (p.trim().startsWith('<') && !p.trim().startsWith('<li>')) {
-      return p;
-    }
-    return `<p>${p.trim()}</p>`;
-  }).join('\n');
-  
-  return html;
 }
 
 /**

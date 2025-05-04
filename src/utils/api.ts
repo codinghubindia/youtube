@@ -384,12 +384,13 @@ export const getUserRegion = async (): Promise<string> => {
 };
 
 // Helper function to construct URL with parameters
-const createUrl = (endpoint: string, params: Record<string, string | number | boolean>) => {
+const createUrl = (endpoint: string, params: Record<string, string | number | boolean>): string => {
   const url = new URL(`${YOUTUBE_API_BASE_URL}${endpoint}`);
   const apiKey = getCurrentApiKey();
   
   if (!apiKey) {
-    throw new Error('No valid API key available - using mock data');
+    console.warn('No valid API key available - falling back to mock data');
+    return ''; // Return empty string instead of null
   }
   
   // Add API key to parameters
@@ -453,6 +454,12 @@ export const getEducationalVideos = async (maxResults = 16, pageToken?: string) 
 
         const url = createUrl(ENDPOINTS.SEARCH, params);
         
+        // Check if we got a valid URL
+        if (!url) {
+          console.warn('Failed to create URL - using mock data');
+          return { videos: shuffleVideos(mockEducationalVideos).slice(0, maxResults), nextPageToken: null };
+        }
+        
         const response = await fetch(url);
         data = await response.json();
         
@@ -482,61 +489,12 @@ export const getEducationalVideos = async (maxResults = 16, pageToken?: string) 
       return { videos: shuffleVideos(mockEducationalVideos).slice(0, maxResults), nextPageToken: null };
     }
     
-    // If we have search results, get the full video details for each
-    if (data?.items?.length > 0) {
-      const videoIds = data.items.map((item: SearchResult) => item.id.videoId).join(',');
-      
-      try {
-        const url = createUrl(ENDPOINTS.VIDEOS, {
-          part: 'snippet,contentDetails,statistics',
-          id: videoIds
-        });
-        
-        const videoResponse = await fetch(url);
-        const videoData = await videoResponse.json();
-        
-        if (videoData.error) {
-          console.error('Error fetching video details:', videoData.error);
-          return { videos: shuffleVideos(mockEducationalVideos).slice(0, maxResults), nextPageToken: null };
-        }
-
-        // Process and filter videos
-        const processedVideos = (videoData.items || []).map((video: YouTubeVideo) => {
-          // Parse duration and convert to seconds
-          const durationMatch = video.contentDetails?.duration?.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-          if (durationMatch) {
-            const [, hours, minutes, seconds] = durationMatch;
-            const durationInSeconds = 
-              (parseInt(hours || '0') * 3600) +
-              (parseInt(minutes || '0') * 60) +
-              parseInt(seconds || '0');
-            video.durationInSeconds = durationInSeconds;
-          }
-
-          // Mark as educational based on title and description
-          video.isEducational = isEducationalContent(video);
-          
-          return video;
-        }).filter((video: YouTubeVideo) => {
-          // Keep only educational videos under 5 minutes (300 seconds)
-          return video.isEducational && 
-                 video.durationInSeconds && 
-                 video.durationInSeconds <= 300;
-        });
-
-        return { 
-          videos: processedVideos.slice(0, maxResults),
-          nextPageToken: data.nextPageToken || null
-        };
-      } catch (err) {
-        console.error('Error fetching video details:', err);
-        return { videos: shuffleVideos(mockEducationalVideos).slice(0, maxResults), nextPageToken: null };
-      }
-    }
-    
-    return { videos: shuffleVideos(mockEducationalVideos).slice(0, maxResults), nextPageToken: null };
-  } catch (err) {
-    console.error('Error fetching educational videos:', err);
+    return {
+      videos: data.items as YouTubeVideo[],
+      nextPageToken: data.nextPageToken || null
+    };
+  } catch (error) {
+    console.error('Error in getEducationalVideos:', error);
     return { videos: shuffleVideos(mockEducationalVideos).slice(0, maxResults), nextPageToken: null };
   }
 };
@@ -610,6 +568,12 @@ export const getPopularVideos = async (maxResults = 16, pageToken?: string) => {
 
         const url = createUrl(ENDPOINTS.VIDEOS, params);
         
+        // Check if we got a valid URL
+        if (!url) {
+          console.warn('Failed to create URL - using mock data');
+          return { videos: shuffleVideos(mockVideos).slice(0, maxResults), nextPageToken: null };
+        }
+        
         const response = await fetch(url);
         data = await response.json() as YouTubeApiResponse;
         
@@ -646,8 +610,8 @@ export const getPopularVideos = async (maxResults = 16, pageToken?: string) => {
       videos: data.items as YouTubeVideo[],
       nextPageToken: data.nextPageToken || null
     };
-  } catch (error: unknown) {
-    console.error('Error fetching popular videos:', error);
+  } catch (error) {
+    console.error('Error in getPopularVideos:', error);
     return { videos: shuffleVideos(mockVideos).slice(0, maxResults), nextPageToken: null };
   }
 };
@@ -664,14 +628,6 @@ export const searchVideos = async (query: string, maxResults = 16, pageToken?: s
   }
   
   try {
-    // Track this request (search is expensive - 100 units)
-    if (trackApiUsage(ENDPOINTS.SEARCH)) {
-      const filteredVideos = mockVideos.filter((video: YouTubeVideo) => 
-        video.snippet.title.toLowerCase().includes(query.toLowerCase())
-      );
-      return { videos: filteredVideos.slice(0, maxResults), nextPageToken: null };
-    }
-    
     const params: Record<string, string | number | boolean> = {
       part: 'snippet',
       maxResults,
@@ -684,6 +640,15 @@ export const searchVideos = async (query: string, maxResults = 16, pageToken?: s
     }
 
     const url = createUrl(ENDPOINTS.SEARCH, params);
+    
+    // Check if we got a valid URL
+    if (!url) {
+      console.warn('Failed to create URL - using mock data');
+      const filteredVideos = mockVideos.filter((video: YouTubeVideo) => 
+        video.snippet.title.toLowerCase().includes(query.toLowerCase())
+      );
+      return { videos: filteredVideos.slice(0, maxResults), nextPageToken: null };
+    }
     
     const response = await fetch(url);
     const data = await response.json();
@@ -707,21 +672,12 @@ export const searchVideos = async (query: string, maxResults = 16, pageToken?: s
       return { videos: filteredVideos.slice(0, maxResults), nextPageToken: null };
     }
     
-    // Get video IDs from search results
-    const videoIds = data.items?.map((item: SearchResult) => item.id.videoId).join(',');
-    
-    if (!videoIds) {
-      return { videos: [], nextPageToken: null };
-    }
-    
-    // Get full video details
-    const videoDetails = await getVideoDetails(videoIds);
-    return { 
-      videos: videoDetails,
+    return {
+      videos: data.items as YouTubeVideo[],
       nextPageToken: data.nextPageToken || null
     };
-  } catch (err) {
-    console.error('Error searching videos:', err);
+  } catch (error) {
+    console.error('Error in searchVideos:', error);
     const filteredVideos = mockVideos.filter((video: YouTubeVideo) => 
       video.snippet.title.toLowerCase().includes(query.toLowerCase())
     );
@@ -740,10 +696,18 @@ export const getVideoDetails = async (videoId: string, options?: RequestOptions)
   }
   
   try {
-    const response = await fetch(
-      `${YOUTUBE_API_BASE_URL}/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${getCurrentApiKey()}`,
-      { signal: options?.signal }
-    );
+    const url = createUrl(ENDPOINTS.VIDEOS, {
+      part: 'snippet,contentDetails,statistics',
+      id: videoId
+    });
+    
+    // Check if we got a valid URL
+    if (!url) {
+      console.warn('Failed to create URL - using mock data');
+      return mockVideos.filter((video: YouTubeVideo) => video.id === videoId);
+    }
+    
+    const response = await fetch(url, { signal: options?.signal });
     const data = await response.json();
     
     // Check for quota errors
@@ -758,7 +722,7 @@ export const getVideoDetails = async (videoId: string, options?: RequestOptions)
     if (error instanceof Error && error.name === 'AbortError') {
       throw error;
     }
-    console.error('Error fetching video details:', error);
+    console.error('Error in getVideoDetails:', error);
     return mockVideos.filter((video: YouTubeVideo) => video.id === videoId);
   }
 };
@@ -766,17 +730,33 @@ export const getVideoDetails = async (videoId: string, options?: RequestOptions)
 // Get channel details
 export const getChannelDetails = async (channelId: string, options?: RequestOptions): Promise<YouTubeChannel | null> => {
   try {
-    const response = await fetch(
-      `${YOUTUBE_API_BASE_URL}/channels?part=snippet,statistics&id=${channelId}&key=${getCurrentApiKey()}`,
-      { signal: options?.signal }
-    );
+    const url = createUrl(ENDPOINTS.CHANNELS, {
+      part: 'snippet,statistics',
+      id: channelId
+    });
+    
+    // Check if we got a valid URL
+    if (!url) {
+      console.warn('Failed to create URL - using mock data');
+      return null;
+    }
+    
+    const response = await fetch(url, { signal: options?.signal });
     const data = await response.json();
+    
+    // Check for quota errors
+    if (data.error && data.error.code === 403) {
+      console.warn('YouTube API quota exceeded');
+      handleApiKeyFailure(getCurrentApiKey());
+      return null;
+    }
+    
     return data.items?.[0] || null;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw error;
     }
-    console.error('Error fetching channel details:', error);
+    console.error('Error in getChannelDetails:', error);
     return null;
   }
 };
