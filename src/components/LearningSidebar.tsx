@@ -1,27 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Download, 
-  MessageSquare, 
-  FileText, 
-  BookOpen, 
+  Brain, 
   Loader2,
   Send,
-  Brain,
   Copy,
-  X,
   ChevronUp,
   ChevronDown,
   AlertTriangle,
   Check
 } from 'lucide-react';
 import { getTranscript } from '../utils/speechmatics';
-import { generateSummary, generateNotes, getChatResponse, testGeminiAPI, isGeminiConfigured } from '../utils/gemini';
+import { isGeminiConfigured } from '../utils/env';
+import { generateNotes, generateSummary, getChatResponse, testGeminiAPI } from '../utils/gemini';
 
 interface LearningSidebarProps {
   videoId: string;
   videoTitle: string;
   isVisible: boolean;
-  onClose: () => void;
 }
 
 interface Message {
@@ -29,7 +24,7 @@ interface Message {
   content: string;
 }
 
-const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, isVisible, onClose }) => {
+const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, isVisible }) => {
   // State for the current active tab
   const [activeTab, setActiveTab] = useState<'summary' | 'chat' | 'notes'>('summary');
   
@@ -964,4 +959,4 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
   );
 };
 
-export default LearningSidebar; 
+export default LearningSidebar;

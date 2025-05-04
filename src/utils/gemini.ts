@@ -1,11 +1,8 @@
 // Google Gemini API integration for AI-generated content
+import { ENV, GEMINI_API_BASE_URL } from './env';
 
 // Array of API keys - we'll rotate through these if one fails
-const GEMINI_API_KEYS = [
-  import.meta.env.VITE_GEMINI_API_KEY_1 || 'AIzaSyALhNHeJyC5doShpa5mR_09KXq8MR-NkoY', 
-  import.meta.env.VITE_GEMINI_API_KEY_2 || '',
-  import.meta.env.VITE_GEMINI_API_KEY_3 || ''
-].filter(key => key); // Filter out empty keys
+const GEMINI_API_KEYS = ENV.GEMINI_API_KEYS;
 
 // Gemini models with fallback options
 const GEMINI_MODELS = {
@@ -13,8 +10,6 @@ const GEMINI_MODELS = {
   SECONDARY: 'gemini-1.5-flash',       // Reliable fallback
   TERTIARY: 'gemini-1.0-pro'           // Last resort
 };
-
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1';
 
 // Keep track of failed keys and models
 interface ApiState {
@@ -165,7 +160,7 @@ async function callGeminiAPI(prompt: string, temperature = 0.3, maxTokens = 2048
       console.log(`Calling Gemini API with model: ${model}, prompt: ${prompt.substring(0, 100)}...`);
       
       // Updated API URL with key as query parameter
-      const response = await fetch(`${GEMINI_API_URL}/models/${model}:generateContent?key=${apiKey}`, {
+      const response = await fetch(`${GEMINI_API_BASE_URL}/models/${model}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -283,30 +278,33 @@ export async function generateSummary(
   videoTitle: string,
   videoId?: string
 ): Promise<string[]> {
-  // Truncate transcript if too long
   const truncatedTranscript = transcript.length > 15000 
     ? transcript.slice(0, 15000) + "... [transcript truncated for length]"
     : transcript;
   
-  // Construct video URL if ID is provided
   const videoUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : '';
   
   try {
-    const prompt = `
-You are an educational assistant helping students understand YouTube videos.
-Based on the following transcript from the YouTube video titled "${videoTitle}"${videoUrl ? ` (${videoUrl})` : ''}, 
-create a concise but comprehensive summary of the key points.
-make sure to include all the key points and details from the video.
-Format your response as a bulleted list with 6-8 main points.
-Each point should be a single sentence capturing an important concept from the video.
-Focus on the educational value and key takeaways a student would need.
-Do not add any introductory text or conclusion - just return the bullet points directly.
+    const prompt = `As an educational content summarizer, create a clear and comprehensive summary of "${videoTitle}"${videoUrl ? ` (${videoUrl})` : ''}.
 
-TRANSCRIPT:
-${truncatedTranscript}
-`;
+Format Requirements:
+- Exactly 6-8 bullet points
+- Each bullet must start with "•" (bullet point)
+- Each point should be a complete, self-contained concept
+- Points should progress logically from basic to advanced concepts
+- Keep each point between 15-30 words for readability
+- Focus on actionable insights and technical details
 
-    // Call the Gemini API
+Content Guidelines:
+- Include key technical terms and their explanations
+- Highlight practical applications
+- Note important techniques or methodologies
+- Include any best practices mentioned
+- Capture core concepts and their relationships
+
+Transcript to Summarize:
+${truncatedTranscript}`;
+
     const summaryText = await callGeminiAPI(prompt, 0.2, 1024);
     
     // Check if we got an error message back
@@ -355,36 +353,107 @@ export async function generateNotes(
   videoTitle: string,
   videoId?: string
 ): Promise<string> {
-  // Truncate transcript if too long
   const truncatedTranscript = transcript.length > 20000 
     ? transcript.slice(0, 20000) + "... [transcript truncated for length]"
     : transcript;
   
-  // Construct video URL if ID is provided
   const videoUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : '';
   
   try {
-    const prompt = `
-You are an educational assistant creating comprehensive study notes for a student.
-Based on the following transcript from the YouTube video titled "${videoTitle}"${videoUrl ? ` (${videoUrl})` : ''}, 
-create detailed, well-structured study notes that a student can use for learning and revision.
+    const prompt = `You are an expert educational content creator specializing in detailed study notes.
 
-Format your response in HTML with appropriate heading levels, lists, code blocks, etc.
-Include the following sections:
-1. A main title with the video title
-2. Main concepts explained in the video
-3. Detailed explanations with examples where applicable
-4. Key takeaways
-5. Additional resources or practice suggestions if mentioned in the video
+Task: Transform this video lecture titled "${videoTitle}"${videoUrl ? ` (${videoUrl})` : ''} into comprehensive study notes.
 
-The notes should be thorough enough for a student to understand the topic without rewatching the video.
-Use clear explanations, examples, and visual organization to make the content easy to understand and reference.
+Required Structure (using semantic HTML):
+<div class="study-notes">
+  <h1>${videoTitle}</h1>
 
-TRANSCRIPT:
-${truncatedTranscript}
-`;
+  <div class="overview">
+    <h2>Overview</h2>
+    <p>[Brief introduction explaining the topic's importance and context]</p>
+    <div class="prerequisites">
+      <h3>Prerequisites</h3>
+      <ul>
+        <li>[Required knowledge/tools]</li>
+      </ul>
+    </div>
+    <div class="objectives">
+      <h3>Learning Objectives</h3>
+      <ul>
+        <li>[What you'll learn - specific and measurable]</li>
+      </ul>
+    </div>
+  </div>
 
-    // Call the Gemini API
+  <div class="main-content">
+    <h2>Core Concepts</h2>
+    <div class="concept-list">
+      [For each major concept]:
+      <div class="concept">
+        <h3>[Concept Name]</h3>
+        <p>[Clear explanation]</p>
+        [If applicable]:
+        <pre><code>[Code example]</code></pre>
+      </div>
+    </div>
+
+    <h2>Implementation Details</h2>
+    <div class="steps">
+      [For each implementation step]:
+      <div class="step">
+        <h3>Step [number]: [step name]</h3>
+        <p>[Detailed explanation]</p>
+        [If relevant]:
+        <pre><code>[Code implementation]</code></pre>
+        <div class="note">
+          <strong>Note:</strong> [Important considerations]
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="practical-application">
+    <h2>Practical Applications</h2>
+    <ul>
+      <li>[Real-world use case with example]</li>
+    </ul>
+  </div>
+
+  <div class="best-practices">
+    <h2>Best Practices</h2>
+    <ul>
+      <li>[Each practice with brief explanation]</li>
+    </ul>
+  </div>
+
+  <div class="common-pitfalls">
+    <h2>Common Pitfalls</h2>
+    <ul>
+      <li>[Potential issue and how to avoid it]</li>
+    </ul>
+  </div>
+
+  <div class="resources">
+    <h2>Additional Resources</h2>
+    <ul>
+      <li>[Related documentation, tutorials, or tools]</li>
+    </ul>
+  </div>
+</div>
+
+Formatting Guidelines:
+- Use semantic HTML for proper structure
+- Keep paragraphs concise (2-3 sentences)
+- Include code examples in <pre><code> blocks
+- Use lists for better readability
+- Bold important terms with <strong>
+- Add explanatory notes where helpful
+- Include practical examples
+- Link concepts together logically
+
+Here's the video transcript to analyze:
+${truncatedTranscript}`;
+
     const notesHtml = await callGeminiAPI(prompt, 0.3, 4096);
     
     // Check if we got an error message back
@@ -438,27 +507,70 @@ export async function getChatResponse(
   videoTitle?: string,
   videoId?: string
 ): Promise<string> {
-  // Truncate transcript if too long
   const truncatedTranscript = transcript.length > 10000 
     ? transcript.slice(0, 10000) + "... [transcript truncated for length]"
     : transcript;
   
-  // Construct video URL if ID is provided
   const videoUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : '';
   
   try {
-    const prompt = `
-You are an AI tutor helping a student understand a YouTube video${videoTitle ? ` titled "${videoTitle}"` : ''}${videoUrl ? ` (${videoUrl})` : ''}.
-The student is asking: "${userQuestion}"
+    const prompt = `You are an expert educational AI tutor helping students understand "${videoTitle}"${videoUrl ? ` (${videoUrl})` : ''}.
 
-Based on the following transcript from the video, provide a helpful, accurate response.
-Your response should be HTML-formatted with appropriate paragraphs, lists, and emphasis where needed.
-If the transcript doesn't contain information relevant to the question, acknowledge that and provide
-general guidance on the topic if possible. Be concise but thorough in your explanation.
+Student Question: "${userQuestion}"
 
-TRANSCRIPT EXCERPT:
-${truncatedTranscript}
-`;
+Response Requirements:
+1. Format in clean HTML with semantic structure
+2. Focus on accuracy and clarity
+3. Use a conversational, encouraging tone
+4. Structure the response as follows:
+
+<div class="chat-response">
+  <div class="answer">
+    <p class="main-point">[Direct, clear answer to the question]</p>
+  </div>
+
+  [If the concept needs explanation]:
+  <div class="explanation">
+    <h4>Let me explain further:</h4>
+    <p>[Detailed explanation with examples]</p>
+  </div>
+
+  [If code is relevant]:
+  <pre><code>
+    [Code example with comments]
+  </code></pre>
+
+  [For technical concepts]:
+  <div class="technical-details">
+    <h4>Technical Details:</h4>
+    <ul>
+      <li>[Technical point 1]</li>
+      <li>[Technical point 2]</li>
+    </ul>
+  </div>
+
+  [If helpful]:
+  <div class="examples">
+    <h4>Examples:</h4>
+    <p>[Real-world examples or applications]</p>
+  </div>
+
+  [To encourage learning]:
+  <div class="next-steps">
+    <p>[Suggestion for further learning or practice]</p>
+  </div>
+</div>
+
+Guidelines:
+- Keep explanations concise but thorough
+- Use clear examples for complex concepts
+- Include code snippets when relevant
+- Reference specific parts of the video when possible
+- If unsure, acknowledge limitations
+- Encourage further learning
+
+Video Context:
+${truncatedTranscript}`;
 
     // Call the Gemini API
     const responseText = await callGeminiAPI(prompt, 0.4, 2048);
@@ -557,4 +669,4 @@ export async function testGeminiAPI(): Promise<{ success: boolean; message: stri
       message: error instanceof Error ? error.message : 'Unknown error testing API connection'
     };
   }
-} 
+}

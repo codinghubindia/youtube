@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useYouTube } from '../context/YouTubeContext';
 import { useLearningMode } from '../context/LearningModeContext';
 import VideoCard from '../components/VideoCard';

@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
-import { YouTubeVideo, YouTubeChannel, getPopularVideos, searchVideos, resetQuotaTracking, getEducationalVideos } from '../utils/api';
+import { YouTubeVideo, getPopularVideos, searchVideos, resetQuotaTracking, getEducationalVideos } from '../utils/api';
 
 interface MiniPlayerState {
   active: boolean;

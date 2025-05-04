@@ -1,48 +1,74 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  optimizeDeps: {
-    exclude: ['lucide-react'],
-  },
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src'),
+export default defineConfig(({ mode }) => {
+  // Load env file based on `mode` in the current directory.
+  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
+  const env = loadEnv(mode, process.cwd(), '');
+
+  return {
+    define: {
+      // Make env variables explicitly available
+      'process.env': env
     },
-  },
-  build: {
-    // Improve chunking strategy for better caching
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': ['lucide-react', 'tailwindcss'],
+    plugins: [react()],
+    optimizeDeps: {
+      exclude: ['lucide-react'],
+      esbuildOptions: {
+        define: {
+          global: 'globalThis',
+        },
+        plugins: [
+          {
+            name: 'node-modules-polyfill',
+            setup(build) {
+              // Handle node modules that are imported in browser context
+              build.onResolve({ filter: /^(path|fs|os|crypto|stream|util|events|module|url|assert|tty|v8|process|perf_hooks)$/ }, () => {
+                return { external: true };
+              });
+            },
+          },
+        ],
+      },
+    },
+    resolve: {
+      alias: {
+        '@': '/src',
+      },
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+            'ui-vendor': ['lucide-react'],
+          },
+          experimentalMinChunkSize: 10000,
+        },
+        external: ['tailwindcss', 'fs', 'path', 'os', 'crypto', 'stream', 'util', 'events', 'module', 'url', 'assert', 'tty', 'v8', 'process', 'perf_hooks'],
+      },
+      sourcemap: true,
+      minify: 'terser',
+      terserOptions: {
+        compress: {
+          drop_console: true,
+          drop_debugger: true,
+          pure_funcs: ['console.log', 'console.debug', 'console.info'],
+          passes: 2,
+        },
+        mangle: {
+          toplevel: true,
         },
       },
+      cssCodeSplit: true,
+      chunkSizeWarningLimit: 1600,
+      reportCompressedSize: false,
     },
-    // Generate source maps for production
-    sourcemap: true,
-    // Minify output
-    minify: 'terser',
-    // Configure Terser options
-    terserOptions: {
-      compress: {
-        drop_console: false, // Keep console logs for debugging
-        drop_debugger: true,
-      },
+    server: {
+      port: 5173,
+      strictPort: false,
+      open: true,
     },
-    // Optimize CSS
-    cssCodeSplit: true,
-    // Reduce chunk size warning limit
-    chunkSizeWarningLimit: 1000,
-  },
-  // Configure server
-  server: {
-    port: 5173,
-    strictPort: false,
-    open: true,
-  },
+  };
 });

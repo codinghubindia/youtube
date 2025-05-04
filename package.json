@@ -5,28 +5,32 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/build.js",
+    "build": "tsc && vite build",
     "build:simple": "vite build",
+    "build:optimized": "cross-env NODE_ENV=production vite build --mode production",
     "lint": "eslint .",
     "preview": "vite preview",
-    "prebuild": "mkdir -p scripts dist",
     "netlify": "netlify deploy --prod",
     "netlify:preview": "netlify deploy",
-    "cleanup": "node scripts/cleanup.js"
+    "cleanup": "node scripts/cleanup.js",
+    "fix-env": "node scripts/fix-env.js"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.22.3"
+    "react-router-dom": "^6.22.3",
+    "terser": "^5.39.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
     "@tailwindcss/typography": "^0.5.16",
+    "@types/node": "^22.15.3",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.18",
+    "cross-env": "^7.0.3",
     "eslint": "^9.9.1",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",

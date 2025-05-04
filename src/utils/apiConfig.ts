@@ -1,21 +1,9 @@
-// Get all possible API keys from environment variables
-// Format in env: VITE_YOUTUBE_API_KEY_1=key1 VITE_YOUTUBE_API_KEY_2=key2, etc.
-export const YOUTUBE_API_KEYS = [
-  import.meta.env.VITE_YOUTUBE_API_KEY_1 || '',
-  import.meta.env.VITE_YOUTUBE_API_KEY_2 || '',
-  import.meta.env.VITE_YOUTUBE_API_KEY_3 || '',
-  import.meta.env.VITE_YOUTUBE_API_KEY_4 || '',
-];
+// YouTube API configuration
+import { ENV, YOUTUBE_API_BASE_URL } from './env';
 
-// Filter out empty API keys
-export const ACTIVE_API_KEYS = YOUTUBE_API_KEYS.filter(key => key !== '');
-
-// Use fallback to original key if no numbered keys are defined
-export const YOUTUBE_API_KEY = ACTIVE_API_KEYS.length > 0 ? 
-  ACTIVE_API_KEYS[0] : 
-  (import.meta.env.VITE_YOUTUBE_API_KEY || '');
-
-export const YOUTUBE_API_BASE_URL = 'https://www.googleapis.com/youtube/v3';
+// API configuration
+export const API_KEY = ENV.YOUTUBE_API_KEY;
+export const API_KEYS = ENV.YOUTUBE_API_KEYS;
 
 // API endpoints
 export const ENDPOINTS = {
@@ -25,4 +13,14 @@ export const ENDPOINTS = {
   COMMENTS: '/commentThreads',
   PLAYLISTS: '/playlists',
   PLAYLIST_ITEMS: '/playlistItems',
-}; 
+};
+
+// Helper function to build API URLs
+export const buildApiUrl = (endpoint: keyof typeof ENDPOINTS, params: Record<string, string>) => {
+  const url = new URL(`${YOUTUBE_API_BASE_URL}${ENDPOINTS[endpoint]}`);
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.append(key, value);
+  });
+  url.searchParams.append('key', API_KEY);
+  return url.toString();
+};

@@ -1,4 +1,4 @@
-import { YOUTUBE_API_KEY, YOUTUBE_API_BASE_URL, ENDPOINTS, ACTIVE_API_KEYS } from './apiConfig';
+import { YOUTUBE_API_BASE_URL, ENDPOINTS, ACTIVE_API_KEYS } from './env';
 import { mockVideos, shuffleVideos } from './mockData';
 
 // Add quota and key tracking system
@@ -9,6 +9,12 @@ interface QuotaManager {
   isQuotaExceeded: boolean;
   failedApiKeys: string[];
   currentKeyIndex: number;
+}
+
+interface SearchResult {
+  id: {
+    videoId: string;
+  };
 }
 
 // Initialize quota from localStorage or with defaults
@@ -218,16 +224,12 @@ const createUrl = (endpoint: string, params: Record<string, string | number | bo
     throw new Error('No valid API key available');
   }
   
-  url.searchParams.append('key', apiKey);
-  
-  Object.entries(params).forEach(([key, value]) => {
+  // Add API key to parameters
+  Object.entries({ ...params, key: apiKey }).forEach(([key, value]) => {
     url.searchParams.append(key, String(value));
   });
   
-  return {
-    url: url.toString(),
-    apiKey
-  };
+  return url.toString();
 };
 
 // Get educational videos - this is a new function specifically for education content
@@ -267,7 +269,7 @@ export const getEducationalVideos = async (maxResults = 16) => {
     // Try with each API key until one works or we run out
     while (!apiCallSuccess && retryCount < ACTIVE_API_KEYS.length) {
       try {
-        const result = createUrl(ENDPOINTS.SEARCH, {
+        const url = createUrl(ENDPOINTS.SEARCH, {
           part: 'snippet',
           maxResults,
           q: randomTopic,
@@ -277,16 +279,14 @@ export const getEducationalVideos = async (maxResults = 16) => {
           relevanceLanguage: 'en',
           safeSearch: 'strict'
         });
-        const apiKey = result.apiKey;
-        const urlString = result.url;
         
-        const response = await fetch(urlString);
+        const response = await fetch(url);
         data = await response.json();
         
         // Check for quota errors
         if (data.error && (data.error.code === 403 || data.error.message?.includes('quota'))) {
           console.warn(`YouTube API quota exceeded for key, trying next key...`);
-          handleApiKeyFailure(apiKey);
+          handleApiKeyFailure(getCurrentApiKey());
           retryCount++;
           continue;
         }
@@ -294,7 +294,7 @@ export const getEducationalVideos = async (maxResults = 16) => {
         // Check for other errors
         if (data.error) {
           console.error('YouTube API error:', data.error);
-          handleApiKeyFailure(apiKey);
+          handleApiKeyFailure(getCurrentApiKey());
           retryCount++;
           continue;
         }
@@ -313,15 +313,15 @@ export const getEducationalVideos = async (maxResults = 16) => {
     
     // If we have search results, get the full video details for each
     if (data?.items?.length > 0) {
-      const videoIds = data.items.map((item: any) => item.id.videoId).join(',');
+      const videoIds = data.items.map((item: SearchResult) => item.id.videoId).join(',');
       
       try {
-        const result = createUrl(ENDPOINTS.VIDEOS, {
+        const url = createUrl(ENDPOINTS.VIDEOS, {
           part: 'snippet,contentDetails,statistics',
           id: videoIds
         });
         
-        const videoResponse = await fetch(result.url);
+        const videoResponse = await fetch(url);
         const videoData = await videoResponse.json();
         
         if (videoData.error) {
@@ -367,23 +367,21 @@ export const getPopularVideos = async (maxResults = 16) => {
     // Try with each API key until one works or we run out
     while (!apiCallSuccess && retryCount < ACTIVE_API_KEYS.length) {
       try {
-        const result = createUrl(ENDPOINTS.VIDEOS, {
+        const url = createUrl(ENDPOINTS.VIDEOS, {
           part: 'snippet,contentDetails,statistics',
           chart: 'mostPopular',
           maxResults,
           regionCode,
           videoCategoryId: '27' // Education category
         });
-        const apiKey = result.apiKey;
-        const urlString = result.url;
         
-        const response = await fetch(urlString);
+        const response = await fetch(url);
         data = await response.json();
         
         // Check for quota errors
         if (data.error && (data.error.code === 403 || data.error.message?.includes('quota'))) {
           console.warn(`YouTube API quota exceeded for key, trying next key...`);
-          handleApiKeyFailure(apiKey);
+          handleApiKeyFailure(getCurrentApiKey());
           retryCount++;
           continue;
         }
@@ -391,7 +389,7 @@ export const getPopularVideos = async (maxResults = 16) => {
         // Check for other errors
         if (data.error) {
           console.error('YouTube API error:', data.error);
-          handleApiKeyFailure(apiKey);
+          handleApiKeyFailure(getCurrentApiKey());
           retryCount++;
           continue;
         }
@@ -466,7 +464,7 @@ export const searchVideos = async (query: string, maxResults = 16) => {
     }
     
     // Get video IDs from search results
-    const videoIds = data.items?.map((item: { id: { videoId: string } }) => item.id.videoId).join(',') || '';
+    const videoIds = data.items?.map((item: SearchResult) => item.id.videoId).join(',');
     
     if (!videoIds) return [];
     
@@ -797,7 +795,7 @@ export const getRelatedVideos = async (videoId: string, maxResults = 10) => {
     }
     
     // Get video IDs from search results
-    const videoIds = data.items?.map((item: { id: { videoId: string } }) => item.id.videoId).join(',') || '';
+    const videoIds = data.items?.map((item: SearchResult) => item.id.videoId).join(',');
     
     if (!videoIds) return [];
     
@@ -807,4 +805,4 @@ export const getRelatedVideos = async (videoId: string, maxResults = 10) => {
     console.error('Error fetching related videos:', err);
     return [];
   }
-}; 
+};
