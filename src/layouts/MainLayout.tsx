@@ -3,12 +3,13 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useYouTube } from '../context/YouTubeContext';
+import MiniPlayer from '../components/MiniPlayer';
 
 const MainLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const location = useLocation();
-  const { darkMode } = useYouTube();
+  const { darkMode, miniPlayer, hideMiniPlayer } = useYouTube();
   
   // Check if we're on the watch page
   const isWatchPage = location.pathname.includes('/watch/');
@@ -58,6 +59,17 @@ const MainLayout: React.FC = () => {
           <Outlet />
         </main>
       </div>
+
+      {/* Mini Player */}
+      {miniPlayer.active && (
+        <MiniPlayer 
+          videoId={miniPlayer.videoId}
+          title={miniPlayer.title}
+          channelTitle={miniPlayer.channelTitle}
+          thumbnailUrl={miniPlayer.thumbnailUrl}
+          onClose={hideMiniPlayer}
+        />
+      )}
     </div>
   );
 };

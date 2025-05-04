@@ -113,6 +113,13 @@ export const YouTubeProvider: React.FC<{ children: ReactNode }> = ({ children })
         fetchedVideos = await getPopularVideos(pageSize);
       }
       
+      // Check if we got any videos
+      if (!fetchedVideos || fetchedVideos.length === 0) {
+        setError('No videos found. Please try again later.');
+        setHasMoreVideos(false);
+        return;
+      }
+      
       // Check if we have more videos to load
       setHasMoreVideos(fetchedVideos.length >= pageSize);
       
@@ -138,8 +145,12 @@ export const YouTubeProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
     } catch (err) {
       console.error('Error fetching videos:', err);
-      setError('Failed to fetch videos. Please try again later.');
+      setError('Failed to fetch videos. Using mock data instead.');
       setHasMoreVideos(false);
+      
+      // Return mock data on error
+      const mockData = await getEducationalVideos(12);
+      setVideos(mockData);
     } finally {
       setLoading(false);
     }

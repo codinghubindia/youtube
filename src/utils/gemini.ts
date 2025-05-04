@@ -1,14 +1,17 @@
 // Google Gemini API integration for AI-generated content
-import { ENV, GEMINI_API_BASE_URL } from './env';
+import { ENV } from './env';
+
+// API base URL
+const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1';
 
 // Array of API keys - we'll rotate through these if one fails
 const GEMINI_API_KEYS = ENV.GEMINI_API_KEYS;
 
 // Gemini models with fallback options
 const GEMINI_MODELS = {
-  PRIMARY: 'gemini-2.0-flash-lite',    // Fast, efficient
-  SECONDARY: 'gemini-1.5-flash',       // Reliable fallback
-  TERTIARY: 'gemini-1.0-pro'           // Last resort
+  PRIMARY: 'gemini-2.0-flash-lite',    // Main model
+  SECONDARY: 'gemini-2.0-flash',  // Vision model
+  TERTIARY: 'gemini-1.5-flash'    // Fallback to main model
 };
 
 // Keep track of failed keys and models
@@ -25,9 +28,9 @@ const getApiState = (): ApiState => {
   const saved = localStorage.getItem('geminiApiState');
   if (saved) {
     const state = JSON.parse(saved) as ApiState;
-    // Reset state if it's been more than 1 hour since last reset
-    const oneHourMs = 60 * 60 * 1000;
-    if (Date.now() - state.lastResetTime > oneHourMs) {
+    // Reset state if it's been more than 5 minutes since last reset
+    const fiveMinutesMs = 5 * 60 * 1000;
+    if (Date.now() - state.lastResetTime > fiveMinutesMs) {
       return {
         failedKeys: [],
         failedModels: [],
@@ -157,24 +160,44 @@ async function callGeminiAPI(prompt: string, temperature = 0.3, maxTokens = 2048
     }
     
     try {
-      console.log(`Calling Gemini API with model: ${model}, prompt: ${prompt.substring(0, 100)}...`);
+      console.log(`Calling Gemini API with model: ${model}`);
       
-      // Updated API URL with key as query parameter
-      const response = await fetch(`${GEMINI_API_BASE_URL}/models/${model}:generateContent?key=${apiKey}`, {
+      // Updated API URL and request format
+      const response = await fetch(`${GEMINI_API_BASE_URL}/${model}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          contents: [{ 
-            parts: [{ text: prompt }] 
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
           }],
           generationConfig: {
-            temperature: temperature,
+            temperature,
             maxOutputTokens: maxTokens,
             topK: 40,
             topP: 0.95
-          }
+          },
+          safetySettings: [
+            {
+              category: "HARM_CATEGORY_HATE_SPEECH",
+              threshold: "BLOCK_NONE"
+            },
+            {
+              category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+              threshold: "BLOCK_NONE"
+            },
+            {
+              category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+              threshold: "BLOCK_NONE"
+            },
+            {
+              category: "HARM_CATEGORY_HARASSMENT",
+              threshold: "BLOCK_NONE"
+            }
+          ]
         })
       });
 
@@ -182,21 +205,26 @@ async function callGeminiAPI(prompt: string, temperature = 0.3, maxTokens = 2048
         const errorText = await response.text();
         console.error(`API response error with model ${model}:`, response.status, errorText);
         
-        // Check error type to determine if it's a key or model issue
-        if (response.status === 400 && errorText.includes('model')) {
-          // Model-related error, try another model
-          handleModelFailure(model);
-        } else {
-          // Probably an API key issue
+        // Handle specific error cases
+        if (response.status === 429) {
+          // Rate limit - mark key as failed temporarily
           handleApiKeyFailure(apiKey);
+        } else if (response.status === 400 && errorText.includes('model')) {
+          // Model-related error
+          handleModelFailure(model);
+        } else if (response.status === 403) {
+          // Invalid API key
+          handleApiKeyFailure(apiKey);
+        } else {
+          // Other errors - try next model
+          handleModelFailure(model);
         }
         
         attemptsRemaining--;
-        continue; // Try the next key/model
+        continue;
       }
 
       const data = await response.json();
-      console.log(`Received API response from ${model}:`, JSON.stringify(data).substring(0, 100) + '...');
       
       if (!data.candidates || data.candidates.length === 0) {
         console.error(`No response generated from model ${model}`);
@@ -205,12 +233,16 @@ async function callGeminiAPI(prompt: string, temperature = 0.3, maxTokens = 2048
         continue;
       }
 
-      // Extract text from response - handle different response formats
+      // Extract text from response
+      const candidate = data.candidates[0];
       let responseText = '';
-      if (data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts.length > 0) {
-        responseText = data.candidates[0].content.parts[0].text || '';
-      } else if (data.candidates[0].text) {
-        responseText = data.candidates[0].text;
+      
+      if (candidate.content?.parts?.[0]?.text) {
+        responseText = candidate.content.parts[0].text;
+      } else if (candidate.content?.text) {
+        responseText = candidate.content.text;
+      } else if (typeof candidate.content === 'string') {
+        responseText = candidate.content;
       }
       
       if (!responseText) {
@@ -220,16 +252,20 @@ async function callGeminiAPI(prompt: string, temperature = 0.3, maxTokens = 2048
         continue;
       }
       
-      // Success! Reset the failed attempts counter for this model
-      if (apiState.failedModels.includes(model)) {
-        const index = apiState.failedModels.indexOf(model);
-        if (index > -1) {
-          apiState.failedModels.splice(index, 1);
-          saveApiState();
-        }
+      // Success! Reset failures for this key and model
+      const keyIndex = apiState.failedKeys.indexOf(apiKey);
+      if (keyIndex > -1) {
+        apiState.failedKeys.splice(keyIndex, 1);
       }
       
+      const modelIndex = apiState.failedModels.indexOf(model);
+      if (modelIndex > -1) {
+        apiState.failedModels.splice(modelIndex, 1);
+      }
+      
+      saveApiState();
       return responseText;
+      
     } catch (error) {
       console.error(`Error calling Gemini API with model ${model}:`, error);
       handleModelFailure(model);

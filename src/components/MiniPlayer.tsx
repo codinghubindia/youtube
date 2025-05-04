@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Minimize2, Maximize2, Play, Pause } from 'lucide-react';
+import { X, Minimize2, Play, Pause, Image as ImageIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface MiniPlayerProps {
@@ -19,6 +19,7 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
 }) => {
   const [minimized, setMinimized] = useState(false);
   const [playing, setPlaying] = useState(true);
+  const [thumbnailError, setThumbnailError] = useState(false);
 
   const toggleMinimize = () => {
     setMinimized(!minimized);
@@ -30,6 +31,13 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
     setPlaying(!playing);
   };
 
+  // Fallback image component
+  const FallbackImage = () => (
+    <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
+      <ImageIcon size={24} className="text-gray-400 dark:text-gray-500" />
+    </div>
+  );
+
   if (minimized) {
     return (
       <div 
@@ -37,11 +45,16 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
         onClick={toggleMinimize}
       >
         <div className="relative w-full h-full">
-          <img 
-            src={thumbnailUrl} 
-            alt={title}
-            className="w-full h-full object-cover"
-          />
+          {thumbnailError ? (
+            <FallbackImage />
+          ) : (
+            <img 
+              src={thumbnailUrl} 
+              alt={title}
+              className="w-full h-full object-cover"
+              onError={() => setThumbnailError(true)}
+            />
+          )}
           <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
             {playing ? (
               <Pause 
@@ -78,11 +91,16 @@ const MiniPlayer: React.FC<MiniPlayerProps> = ({
             ></iframe>
           ) : (
             <div className="relative w-full h-full">
-              <img 
-                src={thumbnailUrl} 
-                alt={title}
-                className="w-full h-full object-cover"
-              />
+              {thumbnailError ? (
+                <FallbackImage />
+              ) : (
+                <img 
+                  src={thumbnailUrl} 
+                  alt={title}
+                  className="w-full h-full object-cover"
+                  onError={() => setThumbnailError(true)}
+                />
+              )}
               <div 
                 className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black bg-opacity-20"
                 onClick={togglePlayPause}

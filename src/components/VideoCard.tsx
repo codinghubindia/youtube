@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check } from 'lucide-react';
+import { Check, Image as ImageIcon } from 'lucide-react';
 import { VideoType } from '../data/videos';
 import { formatViews, formatTimeAgo } from '../utils/formatUtils';
 
@@ -10,19 +10,34 @@ interface VideoCardProps {
 }
 
 const VideoCard: React.FC<VideoCardProps> = ({ video, layout = 'grid' }) => {
+  const [thumbnailError, setThumbnailError] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+  
   // Make sure we have a channel object with all required properties
   const channel = video.channel || { name: 'Unknown Channel', avatarUrl: '', verified: false };
   const avatarUrl = channel.avatarUrl || 'https://ui-avatars.com/api/?name=Unknown';
+
+  // Fallback image component
+  const FallbackImage = () => (
+    <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
+      <ImageIcon size={24} className="text-gray-400 dark:text-gray-500" />
+    </div>
+  );
 
   if (layout === 'row') {
     return (
       <Link to={`/watch/${video.id}`} className="flex mb-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg p-1">
         <div className="relative w-40 h-24 min-w-[160px] bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
-          <img 
-            src={video.thumbnailUrl} 
-            alt={video.title}
-            className="w-full h-full object-cover"
-          />
+          {thumbnailError ? (
+            <FallbackImage />
+          ) : (
+            <img 
+              src={video.thumbnailUrl} 
+              alt={video.title}
+              className="w-full h-full object-cover"
+              onError={() => setThumbnailError(true)}
+            />
+          )}
           <div className="absolute bottom-1 right-1 bg-black bg-opacity-80 text-white text-xs px-1 rounded">
             {video.duration}
           </div>
@@ -48,11 +63,16 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, layout = 'grid' }) => {
     <div className="flex flex-col">
       <Link to={`/watch/${video.id}`} className="group">
         <div className="relative w-full aspect-video bg-gray-200 dark:bg-gray-700 rounded-xl overflow-hidden mb-2">
-          <img 
-            src={video.thumbnailUrl} 
-            alt={video.title}
-            className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-          />
+          {thumbnailError ? (
+            <FallbackImage />
+          ) : (
+            <img 
+              src={video.thumbnailUrl} 
+              alt={video.title}
+              className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+              onError={() => setThumbnailError(true)}
+            />
+          )}
           <div className="absolute bottom-1 right-1 bg-black bg-opacity-80 text-white text-xs px-1 rounded">
             {video.duration}
           </div>
@@ -60,11 +80,16 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, layout = 'grid' }) => {
         
         <div className="flex">
           <div className="h-9 w-9 rounded-full overflow-hidden mr-3 mt-1">
-            <img
-              src={avatarUrl}
-              alt={channel.name}
-              className="h-full w-full object-cover"
-            />
+            {avatarError ? (
+              <FallbackImage />
+            ) : (
+              <img
+                src={avatarUrl}
+                alt={channel.name}
+                className="h-full w-full object-cover"
+                onError={() => setAvatarError(true)}
+              />
+            )}
           </div>
           
           <div className="flex-1">

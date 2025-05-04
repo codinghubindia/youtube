@@ -1,14 +1,16 @@
-import { YOUTUBE_API_BASE_URL, ENDPOINTS, ACTIVE_API_KEYS } from './env';
-import { mockVideos, shuffleVideos } from './mockData';
+import { YOUTUBE_API_BASE_URL, ENDPOINTS, ACTIVE_API_KEYS, ENV } from './env';
+import { mockVideos, shuffleVideos, mockEducationalVideos } from './mockData';
 
 // Add quota and key tracking system
 interface QuotaManager {
   dailyQuotaLimit: number;
-  currentDailyUsage: number;
+  quotaPerKey: { [key: string]: number };  // Track quota per key
   lastResetDate: string;
-  isQuotaExceeded: boolean;
   failedApiKeys: string[];
   currentKeyIndex: number;
+  keyFailures: { [key: string]: number };
+  keyUsageLogged: { [key: string]: boolean };
+  lastFailureReset: number;
 }
 
 interface SearchResult {
@@ -19,31 +21,41 @@ interface SearchResult {
 
 // Initialize quota from localStorage or with defaults
 const initQuotaManager = (): QuotaManager => {
-  const savedQuota = localStorage.getItem('youtubeApiQuota');
-  
-  if (savedQuota) {
-    const parsed = JSON.parse(savedQuota) as QuotaManager;
-    // Reset daily count if it's a new day
+  const stored = localStorage.getItem('youtubeApiQuota');
+  if (stored) {
+    const parsed = JSON.parse(stored);
+    // Reset if it's a new day
     const today = new Date().toISOString().split('T')[0];
-    
     if (parsed.lastResetDate !== today) {
-      parsed.currentDailyUsage = 0;
-      parsed.lastResetDate = today;
-      parsed.isQuotaExceeded = false;
-      parsed.failedApiKeys = [];
+      return {
+        dailyQuotaLimit: 10000,
+        quotaPerKey: {},
+        lastResetDate: today,
+        failedApiKeys: [],
+        currentKeyIndex: 0,
+        keyFailures: {},
+        keyUsageLogged: {},
+        lastFailureReset: Date.now()
+      };
     }
-    
-    return parsed;
+    return {
+      ...parsed,
+      // Always ensure these properties exist
+      keyFailures: parsed.keyFailures || {},
+      keyUsageLogged: parsed.keyUsageLogged || {},
+      lastFailureReset: parsed.lastFailureReset || Date.now()
+    };
   }
   
-  // Default values - YouTube has a default of 10,000 units per day
   return {
     dailyQuotaLimit: 10000,
-    currentDailyUsage: 0,
+    quotaPerKey: {},
     lastResetDate: new Date().toISOString().split('T')[0],
-    isQuotaExceeded: false,
     failedApiKeys: [],
-    currentKeyIndex: 0
+    currentKeyIndex: 0,
+    keyFailures: {},
+    keyUsageLogged: {},
+    lastFailureReset: Date.now()
   };
 };
 
@@ -55,80 +67,174 @@ const saveQuotaState = () => {
   localStorage.setItem('youtubeApiQuota', JSON.stringify(quotaManager));
 };
 
-// Get current active API key
+// Track API usage for the current key
+const trackApiUsage = (endpoint: string): boolean => {
+  // If no API keys are configured, return true to use mock data
+  if (ACTIVE_API_KEYS.length === 0) {
+    console.log('No YouTube API keys configured - using mock data');
+    return true;
+  }
+
+  const currentKey = getCurrentApiKey();
+  if (!currentKey) {
+    console.log('No valid API key available - using mock data');
+    return true;
+  }
+
+  // Initialize quota for this key if not exists
+  if (!quotaManager.quotaPerKey[currentKey]) {
+    quotaManager.quotaPerKey[currentKey] = 0;
+  }
+
+  // Calculate cost based on endpoint
+  let cost = 1;
+  switch (endpoint) {
+    case ENDPOINTS.SEARCH:
+      cost = 100;
+      break;
+    case ENDPOINTS.VIDEOS:
+      cost = 1;
+      break;
+    case ENDPOINTS.COMMENTS:
+      cost = 1;
+      break;
+    case ENDPOINTS.CHANNELS:
+      cost = 1;
+      break;
+    default:
+      cost = 1;
+  }
+
+  // Check if adding this cost would exceed the quota or if we're close to the limit
+  const currentQuota = quotaManager.quotaPerKey[currentKey];
+  const quotaLimit = quotaManager.dailyQuotaLimit;
+  const quotaWarningThreshold = quotaLimit * 0.8; // 80% of quota
+
+  if (currentQuota + cost > quotaLimit) {
+    console.warn(`API key ${currentKey.slice(0, 8)}... has exceeded quota limit - switching to next key`);
+    handleApiKeyFailure(currentKey);
+    return true;
+  }
+
+  // Warn if approaching quota limit
+  if (currentQuota + cost > quotaWarningThreshold) {
+    console.warn(`API key ${currentKey.slice(0, 8)}... is approaching quota limit (${currentQuota}/${quotaLimit})`);
+  }
+
+  // Add the cost to the quota
+  quotaManager.quotaPerKey[currentKey] += cost;
+  console.log(`API Usage - Key: ${currentKey.slice(0, 8)}..., Endpoint: ${endpoint}, Cost: ${cost}, Total: ${quotaManager.quotaPerKey[currentKey]}/${quotaManager.dailyQuotaLimit}`);
+  saveQuotaState();
+  return false;
+};
+
+// Get current active API key with better rotation and retry logic
 const getCurrentApiKey = (): string => {
-  // If we have no API keys or all keys failed, return empty string
-  if (ACTIVE_API_KEYS.length === 0 || quotaManager.failedApiKeys.length >= ACTIVE_API_KEYS.length) {
+  // If we have no API keys, return empty to use mock data
+  if (!ACTIVE_API_KEYS || ACTIVE_API_KEYS.length === 0) {
+    console.log('No YouTube API keys configured - using mock data');
     return '';
   }
   
-  // Try to get a key that hasn't failed yet
+  // Reset all failed keys after 5 minutes
+  const now = Date.now();
+  if (quotaManager.lastFailureReset && (now - quotaManager.lastFailureReset > 5 * 60 * 1000)) {
+    console.log('Resetting all failed API keys after timeout');
+    quotaManager.failedApiKeys = [];
+    quotaManager.keyFailures = {};
+    quotaManager.lastFailureReset = now;
+    saveQuotaState();
+  }
+  
+  // Try to get a key that hasn't failed yet and has quota available
   let attempts = 0;
-  while (attempts < ACTIVE_API_KEYS.length) {
+  const maxAttempts = ACTIVE_API_KEYS.length * 2; // Allow two full rotations
+  
+  while (attempts < maxAttempts) {
     const keyIndex = quotaManager.currentKeyIndex % ACTIVE_API_KEYS.length;
     const key = ACTIVE_API_KEYS[keyIndex];
     
-    // If this key hasn't failed, use it
-    if (!quotaManager.failedApiKeys.includes(key)) {
-      return key;
+    // Skip invalid keys
+    if (!key || key.length < 20) {
+      console.warn(`Invalid API key at index ${keyIndex} - skipping`);
+      quotaManager.currentKeyIndex = (quotaManager.currentKeyIndex + 1) % ACTIVE_API_KEYS.length;
+      attempts++;
+      continue;
+    }
+    
+    // If this key hasn't completely failed and hasn't exceeded quota
+    const failureCount = quotaManager.keyFailures?.[key] || 0;
+    if (!quotaManager.failedApiKeys.includes(key) && failureCount < 3) {
+      const currentQuota = quotaManager.quotaPerKey[key] || 0;
+      if (currentQuota < quotaManager.dailyQuotaLimit) {
+        if (ENV.isDev && !quotaManager.keyUsageLogged?.[key]) {
+          console.log(`Using API key: ${key.slice(0, 8)}...${key.slice(-4)}`);
+          quotaManager.keyUsageLogged = { ...quotaManager.keyUsageLogged, [key]: true };
+          saveQuotaState();
+        }
+        return key;
+      }
     }
     
     // Try the next key
-    quotaManager.currentKeyIndex++;
+    quotaManager.currentKeyIndex = (quotaManager.currentKeyIndex + 1) % ACTIVE_API_KEYS.length;
     attempts++;
   }
   
-  // All keys have failed
+  // If all keys have failed, but it's been a while since the first failure, reset and try again
+  if (quotaManager.failedApiKeys.length > 0) {
+    quotaManager.failedApiKeys = [];
+    quotaManager.keyFailures = {};
+    quotaManager.lastFailureReset = now;
+    quotaManager.currentKeyIndex = 0;
+    saveQuotaState();
+    
+    // Try one more time with reset state
+    const key = ACTIVE_API_KEYS[0];
+    if (key && key.length >= 20) {
+      return key;
+    }
+  }
+  
+  // All keys have failed or exceeded quota
+  console.warn('No valid API keys available - using mock data');
   return '';
 };
 
-// Mark current API key as failed and try the next one
-const handleApiKeyFailure = (key: string): boolean => {
-  if (!quotaManager.failedApiKeys.includes(key)) {
-    quotaManager.failedApiKeys.push(key);
+// Handle API key failure with better retry logic
+const handleApiKeyFailure = (key: string) => {
+  if (!key) return;
+  
+  // Don't mark as failed if it's just a temporary error
+  const failureCount = (quotaManager.keyFailures?.[key] || 0) + 1;
+  quotaManager.keyFailures = { ...quotaManager.keyFailures, [key]: failureCount };
+  
+  // Only mark as failed after multiple consecutive failures
+  if (failureCount >= 3) {
+    if (!quotaManager.failedApiKeys.includes(key)) {
+      console.warn(`API key ${key.slice(0, 8)}... marked as failed after ${failureCount} consecutive failures. ${ACTIVE_API_KEYS.length - quotaManager.failedApiKeys.length - 1} keys remaining.`);
+      quotaManager.failedApiKeys.push(key);
+    }
   }
   
   // Move to next key
-  quotaManager.currentKeyIndex++;
-  saveQuotaState();
+  quotaManager.currentKeyIndex = (quotaManager.currentKeyIndex + 1) % ACTIVE_API_KEYS.length;
   
-  // Check if there are any keys left
-  return quotaManager.failedApiKeys.length < ACTIVE_API_KEYS.length;
-};
-
-// Track API request cost - different endpoints have different costs
-const trackApiUsage = (endpoint: string) => {
-  // Cost values based on YouTube API documentation
-  // https://developers.google.com/youtube/v3/determine_quota_cost
-  const costMap: Record<string, number> = {
-    '/search': 100,        // Search endpoint costs 100 units
-    '/videos': 1,          // Videos endpoint costs 1 unit per video
-    '/channels': 1,        // Channels endpoint costs 1 unit
-    '/commentThreads': 1,  // Comments endpoint costs 1 unit
-    '/playlists': 1,       // Playlists endpoint costs 1 unit
-    '/playlistItems': 1    // Playlist items endpoint costs 1 unit
-  };
-  
-  const cost = costMap[endpoint] || 1;
-  quotaManager.currentDailyUsage += cost;
-  
-  // Check if we're approaching quota limit (90% usage)
-  if (quotaManager.currentDailyUsage >= quotaManager.dailyQuotaLimit * 0.9) {
-    quotaManager.isQuotaExceeded = true;
-  }
+  // Reset failures for this key after 5 minutes
+  setTimeout(() => {
+    if (quotaManager.keyFailures?.[key]) {
+      delete quotaManager.keyFailures[key];
+      quotaManager.failedApiKeys = quotaManager.failedApiKeys.filter(k => k !== key);
+      console.log(`Reset failure count for API key ${key.slice(0, 8)}...`);
+    }
+  }, 5 * 60 * 1000); // 5 minutes
   
   saveQuotaState();
-  
-  // Log current usage
-  console.log(`YouTube API usage: ${quotaManager.currentDailyUsage}/${quotaManager.dailyQuotaLimit} units (${(quotaManager.currentDailyUsage/quotaManager.dailyQuotaLimit*100).toFixed(2)}%)`);
-  
-  return quotaManager.isQuotaExceeded;
 };
 
 // Force reset of quota tracking (for debugging)
 export const resetQuotaTracking = () => {
-  quotaManager.currentDailyUsage = 0;
-  quotaManager.isQuotaExceeded = false;
+  quotaManager.quotaPerKey = {};
   quotaManager.lastResetDate = new Date().toISOString().split('T')[0];
   quotaManager.failedApiKeys = [];
   quotaManager.currentKeyIndex = 0;
@@ -221,7 +327,7 @@ const createUrl = (endpoint: string, params: Record<string, string | number | bo
   const apiKey = getCurrentApiKey();
   
   if (!apiKey) {
-    throw new Error('No valid API key available');
+    throw new Error('No valid API key available - using mock data');
   }
   
   // Add API key to parameters
@@ -234,19 +340,18 @@ const createUrl = (endpoint: string, params: Record<string, string | number | bo
 
 // Get educational videos - this is a new function specifically for education content
 export const getEducationalVideos = async (maxResults = 16) => {
+  // Check if we have any API keys configured
+  if (ACTIVE_API_KEYS.length === 0) {
+    console.log('No YouTube API keys configured - using mock data');
+    return shuffleVideos(mockEducationalVideos).slice(0, maxResults);
+  }
+
   // Check quota before making request
-  if (quotaManager.isQuotaExceeded || quotaManager.failedApiKeys.length >= ACTIVE_API_KEYS.length) {
-    console.log('Using shuffled mock data (quota limit approaching or all API keys failed)');
-    // Return shuffled mock data for educational videos
-    return shuffleVideos(mockVideos).slice(0, maxResults);
+  if (trackApiUsage(ENDPOINTS.SEARCH)) {
+    return shuffleVideos(mockEducationalVideos).slice(0, maxResults);
   }
   
   try {
-    // Track this request (before making it)
-    if (trackApiUsage(ENDPOINTS.SEARCH)) {
-      return shuffleVideos(mockVideos).slice(0, maxResults);
-    }
-    
     // Educational topics for search
     const educationTopics = [
       'web development tutorial',
@@ -271,13 +376,13 @@ export const getEducationalVideos = async (maxResults = 16) => {
       try {
         const url = createUrl(ENDPOINTS.SEARCH, {
           part: 'snippet',
-          maxResults,
+          maxResults: maxResults * 2, // Request more to account for filtering
           q: randomTopic,
           type: 'video',
-          videoDefinition: 'high',
-          videoDuration: 'medium', // Medium duration videos (4-20 minutes)
+          videoDuration: 'short', // Only get videos under 4 minutes
           relevanceLanguage: 'en',
-          safeSearch: 'strict'
+          safeSearch: 'strict',
+          order: 'relevance'
         });
         
         const response = await fetch(url);
@@ -285,7 +390,6 @@ export const getEducationalVideos = async (maxResults = 16) => {
         
         // Check for quota errors
         if (data.error && (data.error.code === 403 || data.error.message?.includes('quota'))) {
-          console.warn(`YouTube API quota exceeded for key, trying next key...`);
           handleApiKeyFailure(getCurrentApiKey());
           retryCount++;
           continue;
@@ -307,8 +411,7 @@ export const getEducationalVideos = async (maxResults = 16) => {
     }
     
     if (!apiCallSuccess) {
-      console.warn('All API keys failed, using mock data');
-      return shuffleVideos(mockVideos).slice(0, maxResults);
+      return shuffleVideos(mockEducationalVideos).slice(0, maxResults);
     }
     
     // If we have search results, get the full video details for each
@@ -326,27 +429,77 @@ export const getEducationalVideos = async (maxResults = 16) => {
         
         if (videoData.error) {
           console.error('Error fetching video details:', videoData.error);
-          return shuffleVideos(mockVideos).slice(0, maxResults);
+          return shuffleVideos(mockEducationalVideos).slice(0, maxResults);
         }
-        
-        return videoData.items as YouTubeVideo[] || [];
+
+        // Process and filter videos
+        const processedVideos = (videoData.items || []).map((video: YouTubeVideo) => {
+          // Parse duration and convert to seconds
+          const durationMatch = video.contentDetails?.duration?.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+          if (durationMatch) {
+            const [, hours, minutes, seconds] = durationMatch;
+            const durationInSeconds = 
+              (parseInt(hours || '0') * 3600) +
+              (parseInt(minutes || '0') * 60) +
+              parseInt(seconds || '0');
+            video.durationInSeconds = durationInSeconds;
+          }
+
+          // Mark as educational based on title and description
+          video.isEducational = isEducationalContent(video);
+          
+          return video;
+        }).filter((video: YouTubeVideo) => {
+          // Keep only educational videos under 5 minutes (300 seconds)
+          return video.isEducational && 
+                 video.durationInSeconds && 
+                 video.durationInSeconds <= 300;
+        });
+
+        // Return filtered and limited results
+        return processedVideos.slice(0, maxResults);
       } catch (err) {
         console.error('Error fetching video details:', err);
-        return shuffleVideos(mockVideos).slice(0, maxResults);
+        return shuffleVideos(mockEducationalVideos).slice(0, maxResults);
       }
     }
     
-    return shuffleVideos(mockVideos).slice(0, maxResults);
+    return shuffleVideos(mockEducationalVideos).slice(0, maxResults);
   } catch (err) {
     console.error('Error fetching educational videos:', err);
-    return shuffleVideos(mockVideos).slice(0, maxResults);
+    return shuffleVideos(mockEducationalVideos).slice(0, maxResults);
   }
+};
+
+// Helper function to determine if a video is educational
+const isEducationalContent = (video: YouTubeVideo): boolean => {
+  const educationalKeywords = [
+    'learn', 'tutorial', 'course', 'education', 'educational', 'how to',
+    'programming', 'coding', 'development', 'beginner', 'introduction',
+    'guide', 'explained', 'for beginners', 'crash course', 'lesson'
+  ];
+
+  const title = video.snippet.title.toLowerCase();
+  const description = video.snippet.description.toLowerCase();
+  const tags = video.snippet.tags || [];
+
+  // Check title and description for educational keywords
+  const hasEducationalKeyword = educationalKeywords.some(keyword =>
+    title.includes(keyword) || description.includes(keyword)
+  );
+
+  // Check if any tags match educational keywords
+  const hasEducationalTag = tags.some(tag =>
+    educationalKeywords.includes(tag.toLowerCase())
+  );
+
+  return hasEducationalKeyword || hasEducationalTag;
 };
 
 // Get popular videos
 export const getPopularVideos = async (maxResults = 16) => {
   // Check quota before making request
-  if (quotaManager.isQuotaExceeded || quotaManager.failedApiKeys.length >= ACTIVE_API_KEYS.length) {
+  if (trackApiUsage(ENDPOINTS.VIDEOS)) {
     console.log('Using shuffled mock data (quota limit approaching or all API keys failed)');
     return shuffleVideos(mockVideos).slice(0, maxResults);
   }
@@ -416,7 +569,7 @@ export const getPopularVideos = async (maxResults = 16) => {
 // Search videos
 export const searchVideos = async (query: string, maxResults = 16) => {
   // Check quota before making request
-  if (quotaManager.isQuotaExceeded) {
+  if (trackApiUsage(ENDPOINTS.SEARCH)) {
     console.log('Using mock data for search (quota limit approaching)');
     const filteredVideos = mockVideos.filter((video: YouTubeVideo) => 
       video.snippet.title.toLowerCase().includes(query.toLowerCase())
@@ -446,8 +599,7 @@ export const searchVideos = async (query: string, maxResults = 16) => {
     // Check for quota errors
     if (data.error && data.error.code === 403) {
       console.warn('YouTube API quota exceeded, using mock data instead');
-      quotaManager.isQuotaExceeded = true;
-      saveQuotaState();
+      handleApiKeyFailure(getCurrentApiKey());
       const filteredVideos = mockVideos.filter((video: YouTubeVideo) => 
         video.snippet.title.toLowerCase().includes(query.toLowerCase())
       );
@@ -484,7 +636,7 @@ export const getVideoDetails = async (videoId: string) => {
   if (!videoId) return [];
   
   // Check quota before making request
-  if (quotaManager.isQuotaExceeded) {
+  if (trackApiUsage(ENDPOINTS.VIDEOS)) {
     console.log('Using mock data for video details (quota limit approaching)');
     if (videoId.includes(',')) {
       // Multiple IDs
@@ -522,8 +674,7 @@ export const getVideoDetails = async (videoId: string) => {
     // Check for quota errors
     if (data.error && data.error.code === 403) {
       console.warn('YouTube API quota exceeded, using mock data instead');
-      quotaManager.isQuotaExceeded = true;
-      saveQuotaState();
+      handleApiKeyFailure(getCurrentApiKey());
       if (videoId.includes(',')) {
         // Multiple IDs
         const ids = videoId.split(',');
@@ -566,9 +717,7 @@ export const getChannelDetails = async (channelId: string) => {
   if (!channelId) return null;
   
   // Check quota before making request
-  if (quotaManager.isQuotaExceeded) {
-    console.log('Using mock data for channel (quota limit approaching)');
-    // Create a mock channel
+  if (trackApiUsage(ENDPOINTS.CHANNELS)) {
     return {
       id: channelId,
       snippet: {
@@ -621,8 +770,7 @@ export const getChannelDetails = async (channelId: string) => {
     // Check for quota errors
     if (data.error && data.error.code === 403) {
       console.warn('YouTube API quota exceeded, using mock data instead');
-      quotaManager.isQuotaExceeded = true;
-      saveQuotaState();
+      handleApiKeyFailure(getCurrentApiKey());
       return {
         id: channelId,
         snippet: {
@@ -660,9 +808,7 @@ export const getVideoComments = async (videoId: string, maxResults = 20) => {
   if (!videoId) return [];
   
   // Check quota before making request
-  if (quotaManager.isQuotaExceeded) {
-    console.log('Using mock comments (quota limit approaching)');
-    // Generate mock comments
+  if (trackApiUsage(ENDPOINTS.COMMENTS)) {
     return Array.from({ length: maxResults }, (_, i) => ({
       id: `comment-${i}`,
       snippet: {
@@ -712,8 +858,7 @@ export const getVideoComments = async (videoId: string, maxResults = 20) => {
     // Check for quota errors
     if (data.error && data.error.code === 403) {
       console.warn('YouTube API quota exceeded, using mock data instead');
-      quotaManager.isQuotaExceeded = true;
-      saveQuotaState();
+      handleApiKeyFailure(getCurrentApiKey());
       return Array.from({ length: maxResults }, (_, i) => ({
         id: `comment-${i}`,
         snippet: {
@@ -746,27 +891,28 @@ export const getVideoComments = async (videoId: string, maxResults = 20) => {
 
 // Get related videos
 export const getRelatedVideos = async (videoId: string, maxResults = 10) => {
-  if (!videoId) return [];
+  if (!videoId) {
+    console.warn('No video ID provided for related videos');
+    return shuffleVideos(mockVideos).slice(0, maxResults);
+  }
   
   // Check quota before making request
-  if (quotaManager.isQuotaExceeded) {
-    console.log('Using mock data for related videos (quota limit approaching)');
-    // Shuffle mock videos and return a subset, excluding the current video
-    const filteredVideos = mockVideos.filter((video: YouTubeVideo) => video.id !== videoId);
-    return filteredVideos
-      .sort(() => Math.random() - 0.5)
+  if (trackApiUsage(ENDPOINTS.SEARCH)) {
+    console.log('Using mock data for related videos (quota limit or no API key)');
+    return shuffleVideos(mockVideos)
+      .filter(video => video.id !== videoId)
       .slice(0, maxResults);
   }
   
   try {
-    // Track this request (search is expensive - 100 units)
-    if (trackApiUsage(ENDPOINTS.SEARCH)) {
-      const filteredVideos = mockVideos.filter((video: YouTubeVideo) => video.id !== videoId);
-      return filteredVideos
-        .sort(() => Math.random() - 0.5)
+    // Validate videoId format (should be 11 characters)
+    if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+      console.warn('Invalid video ID format:', videoId);
+      return shuffleVideos(mockVideos)
+        .filter(video => video.id !== videoId)
         .slice(0, maxResults);
     }
-    
+
     const url = createUrl(ENDPOINTS.SEARCH, {
       part: 'snippet',
       relatedToVideoId: videoId,
@@ -780,29 +926,41 @@ export const getRelatedVideos = async (videoId: string, maxResults = 10) => {
     // Check for quota errors
     if (data.error && data.error.code === 403) {
       console.warn('YouTube API quota exceeded, using mock data instead');
-      quotaManager.isQuotaExceeded = true;
-      saveQuotaState();
-      const filteredVideos = mockVideos.filter((video: YouTubeVideo) => video.id !== videoId);
-      return filteredVideos
-        .sort(() => Math.random() - 0.5)
+      handleApiKeyFailure(getCurrentApiKey());
+      return shuffleVideos(mockVideos)
+        .filter(video => video.id !== videoId)
         .slice(0, maxResults);
     }
     
     // Check for other errors
     if (data.error) {
       console.error('YouTube API error:', data.error);
+      // If it's a 400 error, likely invalid video ID
+      if (data.error.code === 400) {
+        console.warn('Invalid video ID or request, using mock data');
+        return shuffleVideos(mockVideos)
+          .filter(video => video.id !== videoId)
+          .slice(0, maxResults);
+      }
       return [];
     }
     
     // Get video IDs from search results
     const videoIds = data.items?.map((item: SearchResult) => item.id.videoId).join(',');
     
-    if (!videoIds) return [];
+    if (!videoIds) {
+      console.warn('No related videos found, using mock data');
+      return shuffleVideos(mockVideos)
+        .filter(video => video.id !== videoId)
+        .slice(0, maxResults);
+    }
     
     // Get full video details
     return getVideoDetails(videoIds);
   } catch (err) {
     console.error('Error fetching related videos:', err);
-    return [];
+    return shuffleVideos(mockVideos)
+      .filter(video => video.id !== videoId)
+      .slice(0, maxResults);
   }
 };

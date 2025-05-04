@@ -3,14 +3,32 @@ import { useYouTube } from '../context/YouTubeContext';
 import { useLearningMode } from '../context/LearningModeContext';
 import VideoCard from '../components/VideoCard';
 import { formatDuration } from '../utils/formatUtils';
-import { Loader2, BookOpen } from 'lucide-react';
+import { Loader2, BookOpen, AlertCircle } from 'lucide-react';
 import { parseISO8601Duration } from '../utils/mockData';
+import { isYouTubeConfigured } from '../utils/env';
+import { VideoType } from '../data/videos';
+import { YouTubeVideo } from '../utils/api';
 
 const HomePage: React.FC = () => {
   const { videos, loading, error, fetchVideos, loadMoreVideos } = useYouTube();
   const { learningMode } = useLearningMode();
   const [page, setPage] = useState(1);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // Convert YouTubeVideo to VideoType
+  const convertToVideoType = (video: YouTubeVideo): VideoType => ({
+    id: video.id,
+    title: video.snippet.title,
+    thumbnailUrl: video.snippet.thumbnails.high.url,
+    channel: {
+      name: video.snippet.channelTitle,
+      avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(video.snippet.channelTitle)}&background=random`,
+      verified: true
+    },
+    views: parseInt(video.statistics?.viewCount || '0'),
+    timestamp: video.snippet.publishedAt,
+    duration: video.contentDetails?.duration ? formatDuration(video.contentDetails.duration) : ''
+  });
 
   // Process videos for learning mode
   const processedVideos = React.useMemo(() => {
@@ -30,86 +48,64 @@ const HomePage: React.FC = () => {
 
   // Load initial videos
   useEffect(() => {
-    fetchVideos(false, 1, true); // Third parameter true to fetch educational videos
-  }, [fetchVideos]);
+    // Check if YouTube API is configured
+    if (!isYouTubeConfigured()) {
+      console.warn('YouTube API is not configured - using mock data');
+    }
+    // Fetch educational videos only if learning mode is enabled
+    fetchVideos(false, 1, learningMode);
+  }, [fetchVideos, learningMode]); // Add learningMode to dependencies
 
-  // Implement infinite scrolling with Intersection Observer
+  // Handle infinite scroll
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        // If the loadMoreRef element is intersecting (visible)
         if (entries[0].isIntersecting && !loading) {
-          loadMoreVideos(true); // true to fetch educational videos
-          setPage(prev => prev + 1);
+          setPage((prevPage) => {
+            const nextPage = prevPage + 1;
+            loadMoreVideos(learningMode);
+            return nextPage;
+          });
         }
       },
-      { threshold: 0.1 } // Trigger when 10% of the element is visible
+      { threshold: 1.0 }
     );
 
-    // If we have a reference to the element, observe it
     if (loadMoreRef.current) {
       observer.observe(loadMoreRef.current);
     }
 
-    // Cleanup: disconnect the observer when component unmounts
-    return () => {
-      if (loadMoreRef.current) {
-        observer.unobserve(loadMoreRef.current);
-      }
-      observer.disconnect();
-    };
-  }, [loading, loadMoreVideos]);
+    return () => observer.disconnect();
+  }, [loading, loadMoreVideos, learningMode]);
 
-  if (error && videos.length === 0) {
+  if (error) {
     return (
-      <div className="p-4 text-center">
-        <p className="text-red-500">{error}</p>
-        <button 
-          onClick={() => fetchVideos(false, 1, true)}
-          className="mt-4 px-4 py-2 bg-youtube-red text-white rounded-lg"
-        >
-          Try Again
-        </button>
+      <div className="flex flex-col items-center justify-center min-h-[50vh] p-8">
+        <AlertCircle className="text-youtube-red mb-4" size={48} />
+        <h2 className="text-xl font-semibold mb-2 dark:text-white">Error Loading Videos</h2>
+        <p className="text-gray-600 dark:text-gray-400 text-center mb-4">{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="pt-4 px-4 pb-16 dark:bg-[#0f0f0f]">
-      {learningMode && (
-        <div className="mb-4 flex items-center p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
-          <BookOpen className="text-youtube-red mr-2" size={20} />
-          <div>
-            <h3 className="font-medium text-gray-900 dark:text-white">Learning Mode Active</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Showing educational videos under 5 minutes for focused learning
-            </p>
-          </div>
+    <div className="container mx-auto px-4 py-8">
+      {/* Initial loading state */}
+      {loading && videos.length === 0 && (
+        <div className="flex justify-center items-center min-h-[50vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-youtube-red" />
         </div>
       )}
-      
+
+      {/* Videos grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {processedVideos.map(video => (
-          <VideoCard 
-            key={video.id} 
-            video={{
-              id: video.id,
-              title: video.snippet.title,
-              thumbnailUrl: video.snippet.thumbnails.high.url,
-              channel: {
-                name: video.snippet.channelTitle,
-                avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(video.snippet.channelTitle)}&background=random`,
-                verified: true // This would need to come from actual channel data
-              },
-              views: parseInt(video.statistics?.viewCount || '0'),
-              timestamp: video.snippet.publishedAt,
-              duration: formatDuration(video.contentDetails?.duration || '')
-            }} 
-          />
+        {processedVideos.map((video) => (
+          <VideoCard key={video.id} video={convertToVideoType(video)} />
         ))}
       </div>
-      
-      {processedVideos.length === 0 && !loading && (
+
+      {/* No videos found message */}
+      {processedVideos.length === 0 && !loading && learningMode && (
         <div className="p-8 text-center">
           <BookOpen className="mx-auto text-youtube-red mb-4" size={48} />
           <h3 className="text-xl font-semibold mb-2 dark:text-white">No educational videos found</h3>
@@ -118,7 +114,7 @@ const HomePage: React.FC = () => {
           </p>
         </div>
       )}
-      
+
       {/* Loading indicator for infinite scroll */}
       <div ref={loadMoreRef} className="flex justify-center mt-8 pb-4">
         {loading && videos.length > 0 && (
