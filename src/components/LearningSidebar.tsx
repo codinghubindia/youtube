@@ -1,13 +1,12 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Brain, 
   Loader2,
   Send,
   Copy,
-  ChevronUp,
-  ChevronDown,
   AlertTriangle,
-  Check
+  Check,
 } from 'lucide-react';
 import { getTranscript } from '../utils/speechmatics';
 import { isGeminiConfigured } from '../utils/env';
@@ -23,11 +22,12 @@ interface LearningSidebarProps {
 interface Message {
   role: 'user' | 'ai';
   content: string;
+  received?: boolean;
 }
 
 const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, isVisible }) => {
   // State for the current active tab
-  const [activeTab, setActiveTab] = useState<'summary' | 'chat' | 'notes'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'chat' | 'notes'>('chat');
   
   // State for loading indicators
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
@@ -42,7 +42,7 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [transcript, setTranscript] = useState('');
-  const [apiConfigured, setApiConfigured] = useState(isGeminiConfigured());
+  const [apiConfigured] = useState(isGeminiConfigured());
   
   // Refs
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -50,8 +50,8 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
   
   // State for responsive mode
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
-  const [isExpanded, setIsExpanded] = useState(true);
-  const [bottomSheetHeight, setBottomSheetHeight] = useState(500); // Default height for bottom sheet
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [bottomSheetHeight, setBottomSheetHeight] = useState(window.innerHeight * 0.8);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   // Check for mobile view on resize
@@ -69,12 +69,12 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Initialize content
+  // Initialize content when both videoId and title are available
   useEffect(() => {
-    if (videoId && isVisible) {
+    if (videoId && videoTitle && isVisible) {
       fetchTranscript();
     }
-  }, [videoId, isVisible]);
+  }, [videoId, videoTitle, isVisible]);
 
   // Scroll chat to bottom when messages change
   useEffect(() => {
@@ -317,121 +317,202 @@ By the end of this video, you'll have a solid foundation in React development an
     }
   };
   
-  // Handle sending a chat message
+  // Add a function to safely render HTML content
+  const renderMessageContent = (content: string) => {
+    // Check if content is HTML
+    const isHTML = /<[a-z][\s\S]*>/i.test(content);
+
+    if (isHTML) {
+      return (
+        <div 
+          className="text-sm prose prose-sm dark:prose-invert max-w-none
+            prose-p:my-1 prose-ul:my-1 prose-ol:my-1 
+            prose-li:my-0.5 prose-pre:my-1
+            prose-code:text-inherit
+            prose-strong:text-white/90
+            prose-headings:text-white
+            prose-a:text-blue-400"
+          dangerouslySetInnerHTML={{ __html: content }}
+        />
+      );
+    }
+
+    // If not HTML, render as before with line breaks and formatting
+    return (
+      <div className="text-sm whitespace-pre-wrap break-words">
+        {content.split('\n').map((line, i) => {
+          if (line.startsWith('```')) {
+            return (
+              <pre key={i} className="bg-[#1a1147] rounded-lg p-2 my-2 overflow-x-auto">
+                <code>{line.replace(/```/g, '').trim()}</code>
+              </pre>
+            );
+          }
+          
+          if (line.startsWith('•') || line.startsWith('-')) {
+            return (
+              <div key={i} className="flex items-start space-x-2 my-1">
+                <span>•</span>
+                <span>{line.replace(/^[•-]\s*/, '')}</span>
+              </div>
+            );
+          }
+          
+          return line ? (
+            <p key={i} className="my-1">{line}</p>
+          ) : <br key={i} />;
+        })}
+      </div>
+    );
+  };
+
+  // Update the message bubble content rendering in renderChatMessages
+  const renderChatMessages = () => {
+    const messageGroups = groupMessagesByDate(messages);
+
+    return Object.entries(messageGroups).map(([date, groupMessages]) => (
+      <div key={date} className="space-y-4">
+        <div className="flex justify-center">
+          <div className="bg-[#2b2250] rounded-full px-3 py-1">
+            <span className="text-xs text-gray-400">
+              {new Date(date).toLocaleDateString(undefined, { 
+                weekday: 'long', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </span>
+          </div>
+        </div>
+
+        {groupMessages.map((message, index) => (
+          <div key={index} className="flex flex-col space-y-1">
+            <div className={`flex items-start space-x-2 ${message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
+              {/* Avatar */}
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 
+                ${message.role === 'user' ? 'bg-blue-500' : 'bg-[#2b2250]'}`}>
+                {message.role === 'user' ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
+                    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2M12 17l-5-5 1.41-1.41L12 14.17l4.59-4.58L18 11l-6 6z"/>
+                  </svg>
+                )}
+              </div>
+
+              {/* Message content */}
+              <div className={`relative max-w-[70%] ${message.role === 'user' ? 'ml-auto' : ''}`}>
+                <div className={`rounded-2xl px-4 py-2 ${
+                  message.role === 'user'
+                    ? 'bg-[#4080ff] text-white'
+                    : 'bg-[#2b2250] text-gray-200'
+                }`}>
+                  {renderMessageContent(message.content)}
+                </div>
+
+                {/* Message metadata */}
+                <div className="flex items-center justify-end space-x-1 mt-1">
+                  <span className="text-xs text-gray-400">
+                    {new Date().toLocaleTimeString([], { 
+                      hour: '2-digit', 
+                      minute: '2-digit',
+                      hour12: true 
+                    })}
+                  </span>
+                  {message.role === 'user' && message.received && (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    ));
+  };
+
+  // Update handleSendMessage to not strip HTML from AI responses
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
     
-    // Add user message to chat
-    const newUserMessage: Message = { role: 'user', content: inputValue };
+    const newUserMessage: Message = { 
+      role: 'user', 
+      content: inputValue,
+      received: false 
+    };
     setMessages(prev => [...prev, newUserMessage]);
     setInputValue('');
     
-    // Show typing indicator
     setIsLoadingChat(true);
     
     try {
       if (apiConfigured) {
-        // Get AI response from API if configured
         const response = await getChatResponse(inputValue, transcript, videoTitle, videoId);
         
-        // Add AI response to chat
-        const newAiMessage: Message = { role: 'ai', content: response };
+        setMessages(prev => prev.map((msg, idx) => 
+          idx === prev.length - 1 ? { ...msg, received: true } : msg
+        ));
+        
+        const newAiMessage: Message = { 
+          role: 'ai', 
+          content: response, // Keep HTML formatting
+          received: true 
+        };
         setMessages(prev => [...prev, newAiMessage]);
       } else {
-        // If API is not configured, provide mock responses with a delay
-        const userQuestion = inputValue.toLowerCase();
-        
-        // Simulate typing delay
         await new Promise(resolve => setTimeout(resolve, 1500));
         
+        setMessages(prev => prev.map((msg, idx) => 
+          idx === prev.length - 1 ? { ...msg, received: true } : msg
+        ));
+        
+        const userQuestion = inputValue.toLowerCase();
         let mockResponse = '';
         
-        // Generate different responses based on the user's question
-        if (userQuestion.includes('explain') || userQuestion.includes('what is')) {
-          mockResponse = `<p>Great question! Let me explain that in more detail.</p>
-          <p>This concept is a fundamental part of the topic being discussed in the video. It involves understanding how different elements interact with each other to produce the desired outcome.</p>
-          <p>Here's a breakdown:</p>
-          <ul>
-            <li><strong>Component 1:</strong> Handles the initial processing and validation</li>
-            <li><strong>Component 2:</strong> Manages the transformation of data</li>
-            <li><strong>Component 3:</strong> Ensures proper output and error handling</li>
-          </ul>
-          <p>Does that help clarify things for you?</p>`;
-        } else if (userQuestion.includes('example') || userQuestion.includes('show me')) {
-          mockResponse = `<p>I'd be happy to provide an example!</p>
-          <p>Here's a practical example from the video:</p>
-          <pre><code>
-          function demonstrateProcess(input) {
-            // Step 1: Initialize the components
-            const result = processInput(input);
-            
-            // Step 2: Apply the transformation
-            const transformed = transform(result);
-            
-            // Step 3: Validate and return
-            return validate(transformed);
-          }
-          </code></pre>
-          <p>In this example, you can see how the three main steps work together to process the input and produce a validated output.</p>
-          <p>Would you like me to elaborate on any specific part of this example?</p>`;
-        } else if (userQuestion.includes('difference') || userQuestion.includes('compare')) {
-          mockResponse = `<p>Let me explain the key differences:</p>
-          <table>
-            <tr>
-              <th>Feature</th>
-              <th>Approach A</th>
-              <th>Approach B</th>
-            </tr>
-            <tr>
-              <td>Performance</td>
-              <td>Faster for small datasets</td>
-              <td>More efficient with large datasets</td>
-            </tr>
-            <tr>
-              <td>Complexity</td>
-              <td>Simpler implementation</td>
-              <td>More complex but more powerful</td>
-            </tr>
-            <tr>
-              <td>Use cases</td>
-              <td>Quick prototyping</td>
-              <td>Production systems</td>
-            </tr>
-          </table>
-          <p>The video recommends using Approach A when you're just getting started, and then transitioning to Approach B as your needs grow more complex.</p>`;
-        } else if (userQuestion.includes('best practice') || userQuestion.includes('should i')) {
-          mockResponse = `<p>According to best practices mentioned in the video:</p>
-          <ol>
-            <li><strong>Always validate your inputs</strong> - This prevents many common errors</li>
-            <li><strong>Use proper error handling</strong> - Don't just catch errors, handle them appropriately</li>
-            <li><strong>Document your code</strong> - This makes maintenance much easier</li>
-            <li><strong>Follow the principle of least privilege</strong> - Only provide access to what's necessary</li>
-            <li><strong>Test thoroughly</strong> - Cover both normal usage and edge cases</li>
-          </ol>
-          <p>The presenter specifically emphasized that following these practices can save you a lot of troubleshooting time later in the development process.</p>`;
+        if (userQuestion.includes('hello') || userQuestion.includes('hi')) {
+          mockResponse = `<p>Hey there! 👋 Ready to dive into web development? I'm here to help!</p>`;
+        } else if (userQuestion.includes('explain') || userQuestion.includes('what is')) {
+          mockResponse = `<p>Let me break that down for you in simple terms:</p>
+            <ul>
+              <li>First, think of it like building blocks</li>
+              <li>Each piece has a specific purpose</li>
+              <li>They all work together to create something amazing</li>
+            </ul>
+            <p>What specific part would you like me to explain further?</p>`;
+        } else if (userQuestion.includes('example')) {
+          mockResponse = `<p>Here's a simple example:</p>
+            <pre><code>function sayHello() {
+  console.log('Hello, developer!');
+}</code></pre>
+            <p>Want me to explain how this works?</p>`;
         } else {
-          mockResponse = `<p>Thanks for your question about "${inputValue}".</p>
-          <p>Based on the video content, this topic relates to the core principles discussed around the 15-minute mark. The presenter emphasized the importance of understanding the underlying concepts before moving on to more advanced applications.</p>
-          <p>Key insights from the video on this topic include:</p>
-          <ul>
-            <li>The foundational principles that guide the implementation</li>
-            <li>How different components interact with each other</li>
-            <li>Common pitfalls to avoid during development</li>
-          </ul>
-          <p>Would you like me to elaborate on any specific aspect of this topic?</p>`;
+          mockResponse = `<p>I understand what you're asking about. Let me help you with that!</p>
+            <ul>
+              <li>This is a common topic in web development</li>
+              <li>Many developers face similar challenges</li>
+              <li>There are several ways to approach this</li>
+            </ul>
+            <p>Would you like me to go into more detail about any of these points?</p>`;
         }
         
-        // Add AI response to chat
-        const newAiMessage: Message = { role: 'ai', content: mockResponse };
+        const newAiMessage: Message = { 
+          role: 'ai', 
+          content: mockResponse,
+          received: true 
+        };
         setMessages(prev => [...prev, newAiMessage]);
       }
     } catch (error) {
       console.error('Error getting chat response:', error);
       
-      // Add error message to chat
       const errorMessage: Message = { 
         role: 'ai', 
-        content: '<p>Sorry, I encountered an error processing your request. Please try again.</p>' 
+        content: `<p>I'm having trouble processing your request right now. Could you try again?</p>`,
+        received: true
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
@@ -453,300 +534,109 @@ By the end of this video, you'll have a solid foundation in React development an
     // Could add a toast notification here
   };
 
-  // Toggle expand/collapse for mobile bottom sheet
-  const toggleExpand = () => {
-    setIsExpanded(!isExpanded);
-  };
-
-  // Function to handle drag on the bottom sheet
-  const startDrag = (e: React.TouchEvent | React.MouseEvent) => {
-    // For direct mouse events
-    const startY = 'clientY' in e ? e.clientY : e.touches[0].clientY;
-    const startHeight = bottomSheetHeight;
+  // Group messages by date
+  const groupMessagesByDate = (messages: Message[]) => {
+    const groups: { [key: string]: Message[] } = {};
     
-    const doDrag = (e: MouseEvent | TouchEvent) => {
-      const currentY = 'clientY' in e ? e.clientY : (e as TouchEvent).touches[0].clientY;
-      const newHeight = Math.max(100, startHeight + startY - currentY);
-      setBottomSheetHeight(newHeight);
-    };
-    
-    const stopDrag = () => {
-      window.removeEventListener('mousemove', doDrag);
-      window.removeEventListener('touchmove', doDrag);
-      window.removeEventListener('mouseup', stopDrag);
-      window.removeEventListener('touchend', stopDrag);
-      
-      // Set fully expanded or collapsed based on height thresholds
-      if (bottomSheetHeight < 150) {
-        setBottomSheetHeight(100);
-        setIsExpanded(false);
-      } else if (bottomSheetHeight > window.innerHeight / 2) {
-        setBottomSheetHeight(window.innerHeight * 0.8);
-        setIsExpanded(true);
+    messages.forEach(message => {
+      const date = new Date();
+      const dateKey = date.toLocaleDateString();
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
       }
-    };
+      groups[dateKey].push(message);
+    });
     
-    window.addEventListener('mousemove', doDrag);
-    window.addEventListener('touchmove', doDrag);
-    window.addEventListener('mouseup', stopDrag);
-    window.addEventListener('touchend', stopDrag);
+    return groups;
   };
 
-  // Test the Gemini API connection
-  const handleTestApi = async () => {
-    setIsTestingApi(true);
-    setApiTestResult(null);
-    
-    try {
-      const result = await testGeminiAPI();
-      setApiTestResult(result);
-    } catch (error) {
-      setApiTestResult({
-        success: false,
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    } finally {
-      setIsTestingApi(false);
-    }
-  };
-
-  // Create a different UI for mobile vs desktop
+  // Mobile version
   if (isMobileView) {
     return (
       <div 
         ref={sidebarRef}
-        className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 shadow-lg z-50 transition-all duration-300 rounded-t-2xl
+        className={`fixed bottom-0 left-0 right-0 
+          bg-[#1a1147] text-white
+          shadow-[0_-8px_30px_rgb(0,0,0,0.12)]
+          rounded-t-xl border-t border-gray-700
+          transition-all duration-300 ease-in-out
           ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}
         style={{ 
           height: isExpanded ? `${bottomSheetHeight}px` : '100px',
-          maxHeight: '85vh'
+          maxHeight: '90vh'
         }}
       >
-        {/* Drag handle */}
+        {/* Header with expand functionality */}
         <div 
-          className="w-full h-6 flex justify-center items-center cursor-grab active:cursor-grabbing"
-          onTouchStart={startDrag}
-          onMouseDown={startDrag}
+          className="sticky top-0 bg-[#1a1147] z-[101] border-b border-gray-700"
+          onClick={() => setIsExpanded(!isExpanded)}
         >
-          <div className="w-10 h-1 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-        </div>
-        
-        {/* Header */}
-        <div className="flex justify-between items-center px-4 pb-2">
-          <h3 className="font-semibold text-gray-800 dark:text-white flex items-center">
-            <Brain size={18} className="mr-2 text-blue-600 dark:text-blue-400" />
-            Learning Assistant
-          </h3>
-          <button 
-            onClick={toggleExpand}
-            className="p-1 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800"
-          >
-            {isExpanded ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
-          </button>
-        </div>
-        
-        {/* Content - only show if expanded */}
-        {isExpanded && (
-          <div className="flex flex-col h-[calc(100%-50px)] overflow-hidden">
-            {/* Tabs */}
-            <div className="flex border-b border-gray-200 dark:border-gray-700 px-4">
-              {['summary', 'chat', 'notes'].map((tab) => (
-                <button 
-                  key={tab}
-                  onClick={() => setActiveTab(tab as 'summary' | 'chat' | 'notes')}
-                  className={`flex-1 py-2 text-sm font-medium capitalize ${
-                    activeTab === tab 
-                      ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' 
-                      : 'text-gray-600 dark:text-gray-400'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-            
-            {/* Content area */}
-            <div className="flex-1 overflow-hidden">
-              {/* API warning - sticky at top */}
-              {!apiConfigured && (
-                <div className="sticky top-0 z-10 px-4 py-2 bg-white dark:bg-gray-900">
-                  <div className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-sm p-3 rounded-lg">
-                    <AlertTriangle size={16} className="mr-2 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Gemini API key not configured</p>
-                      <p className="mt-1 text-xs">Please add your Gemini API key in the settings.</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Scrollable content */}
-              <div className="h-full overflow-y-auto px-4 pb-safe">
-                {/* Dynamic content based on active tab */}
-                <div className="space-y-4 pb-20">
-                  {/* Content rendering based on activeTab */}
-                  {activeTab === 'summary' && (
-                    <div className="space-y-4 pb-20">
-                      {isLoadingSummary ? (
-                        <div className="flex flex-col items-center justify-center h-40">
-                          <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Generating summary...</p>
-                        </div>
-                      ) : (
-                        <div>
-                          <h3 className="text-sm font-semibold sticky top-0 py-2 bg-white dark:bg-gray-900 z-10">Key Points:</h3>
-                          <ul className="space-y-3">
-                            {summaryPoints.length > 0 ? (
-                              summaryPoints.map((point, index) => (
-                                <li 
-                                  key={index} 
-                                  className="flex items-start bg-gray-50 dark:bg-gray-800 p-3 rounded-lg transform transition-transform active:scale-98"
-                                >
-                                  <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium mr-2 flex-shrink-0 mt-0.5">
-                                    {index + 1}
-                                  </span>
-                                  <p className="text-sm text-gray-800 dark:text-gray-200">{point}</p>
-                                </li>
-                              ))
-                            ) : (
-                              <li className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
-                                No summary available yet. Try refreshing.
-                              </li>
-                            )}
-                          </ul>
-                          
-                          {summaryPoints.length > 0 && (
-                            <div className="sticky bottom-0 pt-4 pb-2 bg-white dark:bg-gray-900">
-                              <button 
-                                onClick={() => handleCopy(summaryPoints.join('\n\n'))}
-                                className="w-full flex items-center justify-center py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 shadow-lg"
-                              >
-                                <Copy size={14} className="mr-2" />
-                                Copy Summary
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {activeTab === 'chat' && (
-                    <div className="flex flex-col h-full pb-20">
-                      <div 
-                        ref={chatContainerRef}
-                        className="flex-1 space-y-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700"
-                      >
-                        {messages.map((message, index) => (
-                          <div 
-                            key={index} 
-                            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} transform transition-transform active:scale-98`}
-                          >
-                            <div 
-                              className={`max-w-[85%] rounded-lg p-3 shadow-sm ${
-                                message.role === 'user' 
-                                  ? 'bg-blue-600 text-white rounded-br-none' 
-                                  : 'bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none'
-                              }`}
-                            >
-                              <div 
-                                className="text-sm"
-                                dangerouslySetInnerHTML={{ __html: message.content }}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                        
-                        {isLoadingChat && (
-                          <div className="flex justify-start">
-                            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 max-w-[85%] rounded-bl-none">
-                              <div className="flex items-center space-x-1">
-                                <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"></div>
-                                <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                                <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Fixed input at bottom */}
-                      <div className="sticky bottom-0 px-4 pt-2 pb-4 bg-white dark:bg-gray-900 shadow-lg">
-                        <div className="relative">
-                          <input
-                            ref={inputRef}
-                            type="text"
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onKeyPress={handleKeyPress}
-                            placeholder="Ask a question..."
-                            className="w-full p-3 pr-12 bg-gray-100 dark:bg-gray-800 rounded-full focus:ring-2 focus:ring-blue-500"
-                            disabled={isLoadingChat}
-                          />
-                          <button 
-                            onClick={handleSendMessage}
-                            disabled={!inputValue.trim() || isLoadingChat}
-                            className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-all
-                              ${inputValue.trim() && !isLoadingChat
-                                ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
-                                : 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
-                              }`}
-                          >
-                            <Send size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {activeTab === 'notes' && (
-                    <div className="space-y-4 pb-20">
-                      {isLoadingNotes ? (
-                        <div className="flex flex-col items-center justify-center h-40">
-                          <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Generating notes...</p>
-                        </div>
-                      ) : (
-                        <div>
-                          <h3 className="text-sm font-semibold sticky top-0 py-2 bg-white dark:bg-gray-900 z-10">Study Notes:</h3>
-                          
-                          {notes ? (
-                            <div 
-                              className="prose prose-sm max-w-none dark:prose-invert bg-gray-50 dark:bg-gray-800 p-4 rounded-lg shadow-sm
-                                prose-headings:mt-4 prose-headings:mb-2 
-                                prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1
-                                prose-headings:text-gray-900 dark:prose-headings:text-white
-                                prose-p:text-gray-800 dark:prose-p:text-gray-200
-                                prose-strong:text-blue-700 dark:prose-strong:text-blue-300
-                                prose-code:text-purple-700 dark:prose-code:text-purple-300
-                                prose-pre:bg-gray-100 dark:prose-pre:bg-gray-800/50"
-                              dangerouslySetInnerHTML={{ __html: notes }}
-                            />
-                          ) : (
-                            <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
-                              No notes available yet. Try refreshing.
-                            </p>
-                          )}
-                          
-                          {notes && (
-                            <div className="sticky bottom-0 pt-4 pb-2 bg-white dark:bg-gray-900">
-                              <button 
-                                onClick={() => handleCopy(notes.replace(/<[^>]*>/g, ''))}
-                                className="w-full flex items-center justify-center py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 shadow-lg"
-                              >
-                                <Copy size={14} className="mr-2" />
-                                Copy Notes
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
+          <div className="w-full h-2 flex justify-center items-center py-4 cursor-pointer">
+            <div className="w-12 h-1 bg-gray-600 rounded-full"></div>
+          </div>
+          
+          <div className="flex items-center justify-between px-4 pb-4">
+            <div className="flex items-center space-x-3">
+              <button onClick={(e) => { e.stopPropagation(); window.history.back(); }} className="text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+              </button>
+              <h3 className="text-white text-lg">
+                {videoTitle || 'Chat'}
+              </h3>
             </div>
           </div>
+        </div>
+
+        {isExpanded && (
+          <>
+            {/* Messages container */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+              {renderChatMessages()}
+            </div>
+
+            {/* Input area */}
+            <div className="sticky bottom-0 bg-[#1a1147] p-4 border-t border-gray-700">
+              <div className="flex items-center space-x-2">
+                <button className="p-2 text-blue-400 hover:bg-[#2b2250] rounded-full transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                    <line x1="9" y1="9" x2="9.01" y2="9"/>
+                    <line x1="15" y1="9" x2="15.01" y2="9"/>
+                  </svg>
+                </button>
+                
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Type a message..."
+                    className="w-full px-4 py-2 bg-[#2b2250] text-white rounded-full
+                      placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <button 
+                  onClick={handleSendMessage}
+                  disabled={!inputValue.trim() || isLoadingChat}
+                  className={`p-2 rounded-full transition-colors ${
+                    inputValue.trim() && !isLoadingChat
+                      ? 'text-[#4080ff] hover:bg-[#2b2250]'
+                      : 'text-gray-500'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"/>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </div>
     );
@@ -754,231 +644,272 @@ By the end of this video, you'll have a solid foundation in React development an
 
   // Desktop version
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-white dark:bg-gray-900 rounded-xl">
+    <div className="h-full flex flex-col overflow-hidden bg-gradient-to-b from-white to-gray-50 
+      dark:from-gray-900 dark:to-gray-800 rounded-xl border border-gray-200 dark:border-gray-700
+      shadow-lg">
+      {/* Header */}
+      <div className="px-6 py-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b 
+        border-gray-200 dark:border-gray-700">
+        <div className="flex items-center space-x-3">
+          <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+            <Brain size={20} className="text-blue-600 dark:text-blue-400" />
+          </div>
+          <h3 className="font-semibold text-gray-800 dark:text-white text-lg">
+            Learning Assistant
+          </h3>
+        </div>
+      </div>
+
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 dark:border-gray-700">
-        <button 
-          onClick={() => setActiveTab('summary')}
-          className={`flex-1 py-3 text-sm font-medium ${
-            activeTab === 'summary' 
-              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' 
-              : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
-          }`}
-        >
-          Summary
-        </button>
-        <button 
-          onClick={() => setActiveTab('chat')}
-          className={`flex-1 py-3 text-sm font-medium ${
-            activeTab === 'chat' 
-              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' 
-              : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
-          }`}
-        >
-          Chat
-        </button>
-        <button 
-          onClick={() => setActiveTab('notes')}
-          className={`flex-1 py-3 text-sm font-medium ${
-            activeTab === 'notes' 
-              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' 
-              : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
-          }`}
-        >
-          Notes
-        </button>
+      <div className="flex px-6 pt-4">
+        {['summary', 'chat', 'notes'].map((tab) => (
+          <button 
+            key={tab}
+            onClick={() => setActiveTab(tab as 'summary' | 'chat' | 'notes')}
+            className={`flex-1 py-3 px-4 text-sm font-medium capitalize rounded-t-lg
+              transition-colors duration-200 ${
+              activeTab === tab 
+                ? 'text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 shadow-sm' 
+                : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
+            }`}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
       </div>
 
       {/* Content area */}
-      <div className="flex-1 overflow-hidden p-4">
-        {/* API not configured warning */}
-        {!apiConfigured && (
-          <div className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-sm p-3 rounded-lg mb-3 flex items-start">
-            <AlertTriangle size={16} className="mr-2 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium">Gemini API key not configured</p>
-              <p className="mt-1 text-xs">Please add your Gemini API key in the settings to use the learning features.</p>
-              <button 
-                onClick={handleTestApi} 
-                className="mt-2 px-3 py-1 bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-100 rounded text-xs font-medium inline-flex items-center"
-                disabled={isTestingApi}
-              >
-                {isTestingApi ? (
-                  <>
-                    <Loader2 size={12} className="mr-1 animate-spin" />
-                    Testing...
-                  </>
-                ) : (
-                  'Test API Connection'
-                )}
-              </button>
-              
-              {apiTestResult && (
-                <div className={`mt-2 p-2 rounded text-xs ${apiTestResult.success ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'}`}>
-                  <div className="flex items-start">
-                    {apiTestResult.success ? (
-                      <Check size={12} className="mr-1 mt-0.5 flex-shrink-0" />
-                    ) : (
-                      <AlertTriangle size={12} className="mr-1 mt-0.5 flex-shrink-0" />
-                    )}
-                    <span>{apiTestResult.message}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Summary Tab */}
-        {activeTab === 'summary' && (
-          <div className="h-full overflow-y-auto pb-16">
-            {isLoadingSummary ? (
-              <div className="flex flex-col items-center justify-center h-40">
-                <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
-                <p className="text-sm text-gray-600 dark:text-gray-400">Generating summary...</p>
-              </div>
-            ) : (
+      <div className="flex-1 bg-white dark:bg-gray-800 overflow-hidden rounded-t-xl shadow-inner">
+        <div className="h-full overflow-y-auto px-6 py-4">
+          {/* API warning */}
+          {!apiConfigured && (
+            <div className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-sm p-3 rounded-lg mb-3 flex items-start">
+              <AlertTriangle size={16} className="mr-2 flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="text-sm font-semibold mb-3 text-gray-800 dark:text-white">Key Points:</h3>
-                <ul className="space-y-3">
-                  {summaryPoints.length > 0 ? (
-                    summaryPoints.map((point, index) => (
-                      <li 
-                        key={index} 
-                        className="flex items-start bg-gray-50 dark:bg-gray-800 p-3 rounded-lg"
-                      >
-                        <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium mr-2 flex-shrink-0 mt-0.5">
-                          {index + 1}
-                        </span>
-                        <p className="text-sm text-gray-800 dark:text-gray-200">{point}</p>
-                      </li>
-                    ))
-                  ) : (
-                    <li className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
-                      No summary available yet. Try refreshing.
-                    </li>
-                  )}
-                </ul>
-                
-                {summaryPoints.length > 0 && (
-                  <button 
-                    onClick={() => handleCopy(summaryPoints.join('\n\n'))}
-                    className="mt-4 w-full flex items-center justify-center py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    <Copy size={14} className="mr-2" />
-                    Copy Summary
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Chat Tab */}
-        {activeTab === 'chat' && (
-          <div className="h-full flex flex-col relative">
-            <div 
-              ref={chatContainerRef}
-              className="flex-1 overflow-y-auto mb-16 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700"
-            >
-              {messages.map((message, index) => (
-                <div 
-                  key={index} 
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                <p className="font-medium">Gemini API key not configured</p>
+                <p className="mt-1 text-xs">Please add your Gemini API key in the settings to use the learning features.</p>
+                <button 
+                  onClick={testGeminiAPI} 
+                  className="mt-2 px-3 py-1 bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-100 rounded text-xs font-medium inline-flex items-center"
+                  disabled={isTestingApi}
                 >
-                  <div 
-                    className={`max-w-[85%] rounded-lg p-3 ${
-                      message.role === 'user' 
-                        ? 'bg-blue-600 text-white rounded-br-none' 
-                        : 'bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none'
-                    }`}
-                  >
-                    <div 
-                      className="text-sm"
-                      dangerouslySetInnerHTML={{ __html: message.content }}
-                    />
-                  </div>
-                </div>
-              ))}
-              
-              {isLoadingChat && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 max-w-[85%] rounded-bl-none">
-                    <div className="flex items-center space-x-1">
-                      <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                  {isTestingApi ? (
+                    <>
+                      <Loader2 size={12} className="mr-1 animate-spin" />
+                      Testing...
+                    </>
+                  ) : (
+                    'Test API Connection'
+                  )}
+                </button>
+                {apiTestResult && (
+                  <div className={`mt-2 text-xs ${apiTestResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    <div className="flex items-center">
+                      {apiTestResult.success ? (
+                        <Check size={12} className="mr-1" />
+                      ) : (
+                        <AlertTriangle size={12} className="mr-1" />
+                      )}
+                      {apiTestResult.message}
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-            
-            {/* Fixed input at bottom for desktop */}
-            <div className="absolute bottom-0 left-0 right-0">
-              <div className="relative">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Ask a question about this video..."
-                  className="w-full p-3 pr-12 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white rounded-full focus:outline-none focus:ring-2 focus:ring-blue-600 dark:focus:ring-blue-500"
-                  disabled={isLoadingChat}
-                />
-                <button 
-                  onClick={handleSendMessage}
-                  disabled={!inputValue.trim() || isLoadingChat}
-                  className={`absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 rounded-full ${
-                    inputValue.trim() && !isLoadingChat
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  <Send size={16} />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Notes Tab */}
-        {activeTab === 'notes' && (
-          <div className="h-full overflow-y-auto pb-4">
-            {isLoadingNotes ? (
-              <div className="flex flex-col items-center justify-center h-40">
-                <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
-                <p className="text-sm text-gray-600 dark:text-gray-400">Generating notes...</p>
-              </div>
-            ) : (
-              <div className="mb-20">
-                <h3 className="text-sm font-semibold mb-3 mt-3 text-gray-800 dark:text-white">Study Notes:</h3>
-                
-                {notes ? (
-                  <div 
-                    className="prose prose-sm max-w-none dark:prose-invert bg-gray-50 dark:bg-gray-800 p-4 rounded-lg prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1"
-                    dangerouslySetInnerHTML={{ __html: notes }}
-                  />
-                ) : (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
-                    No notes available yet. Try refreshing.
-                  </p>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Dynamic content based on active tab */}
+          <div className="h-full overflow-y-auto">
+            {activeTab === 'summary' && (
+              <div className="h-full overflow-y-auto pb-16">
+                {isLoadingSummary ? (
+                  <div className="flex flex-col items-center justify-center h-40">
+                    <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Generating summary...</p>
+                  </div>
+                ) : (
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3 text-gray-800 dark:text-white">Key Points:</h3>
+                    <ul className="space-y-3">
+                      {summaryPoints.length > 0 ? (
+                        summaryPoints.map((point, index) => (
+                          <li 
+                            key={index} 
+                            className="flex items-start bg-gray-50 dark:bg-gray-800 p-3 rounded-lg"
+                          >
+                            <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium mr-2 flex-shrink-0 mt-0.5">
+                              {index + 1}
+                            </span>
+                            <p className="text-sm text-gray-800 dark:text-gray-200">{point}</p>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
+                          No summary available yet. Try refreshing.
+                        </li>
+                      )}
+                    </ul>
+                    
+                    {summaryPoints.length > 0 && (
+                      <button 
+                        onClick={() => handleCopy(summaryPoints.join('\n\n'))}
+                        className="mt-4 w-full flex items-center justify-center py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        <Copy size={14} className="mr-2" />
+                        Copy Summary
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'chat' && (
+              <div className="h-full flex flex-col relative">
+                <div 
+                  ref={chatContainerRef}
+                  className="flex-1 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700"
+                >
+                  {renderChatMessages()}
+                </div>
                 
-                {notes && (
-                  <button 
-                    onClick={() => handleCopy(notes.replace(/<[^>]*>/g, ''))}
-                    className="mt-4 w-full flex items-center justify-center py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    <Copy size={14} className="mr-2" />
-                    Copy Notes
-                  </button>
+                {/* Chat input */}
+                <div className="w-full sticky bottom-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md pt-3 pb-4 px-4 border-t border-gray-100 dark:border-gray-800">
+                  <div className="relative flex items-center">
+                    {/* Emoji button - can be implemented later */}
+                    <button 
+                      className="absolute left-4 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                      onClick={() => {/* Add emoji picker later */}}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                        <line x1="9" y1="9" x2="9.01" y2="9"/>
+                        <line x1="15" y1="9" x2="15.01" y2="9"/>
+                      </svg>
+                    </button>
+
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Ask me anything about the video..."
+                      className="w-full pl-12 pr-24 py-3 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white rounded-xl
+                        border border-gray-200 dark:border-gray-700
+                        focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-400/50 focus:border-blue-500 dark:focus:border-blue-400
+                        placeholder-gray-500 dark:placeholder-gray-400
+                        transition-all duration-200"
+                      disabled={isLoadingChat}
+                    />
+
+                    <div className="absolute right-2 flex items-center gap-2">
+                      {/* Character count */}
+                      {inputValue.length > 0 && (
+                        <span className="text-xs text-gray-400 dark:text-gray-500 mr-2">
+                          {inputValue.length}/500
+                        </span>
+                      )}
+
+                      {/* Send button */}
+                      <button 
+                        onClick={handleSendMessage}
+                        disabled={!inputValue.trim() || isLoadingChat}
+                        className={`p-2 rounded-lg transition-all duration-200 flex items-center gap-2
+                          ${inputValue.trim() && !isLoadingChat
+                            ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95 shadow-lg shadow-blue-600/25'
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                          }`}
+                      >
+                        {isLoadingChat ? (
+                          <>
+                            <Loader2 size={18} className="animate-spin" />
+                            <span className="text-sm font-medium">Thinking...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send size={18} />
+                            <span className="text-sm font-medium">Send</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Quick suggestions */}
+                  <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
+                    <button 
+                      className="flex-shrink-0 px-3 py-1 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 
+                        rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => setInputValue("Can you explain this in simpler terms?")}
+                    >
+                      🤔 Explain simpler
+                    </button>
+                    <button 
+                      className="flex-shrink-0 px-3 py-1 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 
+                        rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => setInputValue("Can you show me an example?")}
+                    >
+                      💡 Show example
+                    </button>
+                    <button 
+                      className="flex-shrink-0 px-3 py-1 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 
+                        rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => setInputValue("What are the best practices for this?")}
+                    >
+                      ✨ Best practices
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'notes' && (
+              <div className="h-full overflow-y-auto">
+                {isLoadingNotes ? (
+                  <div className="flex flex-col items-center justify-center h-40">
+                    <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Generating notes...</p>
+                  </div>
+                ) : (
+                  <div className="mb-20">
+                    <h3 className="text-sm font-semibold mb-3 mt-3 text-gray-800 dark:text-white">Study Notes:</h3>
+                    
+                    {notes ? (
+                      <div 
+                        className={`prose prose-sm max-w-none dark:prose-invert 
+                          bg-gray-50 dark:bg-gray-800 p-4 rounded-lg
+                          prose-headings:mt-4 prose-headings:mb-2 
+                          prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1
+                          prose-headings:text-gray-900 dark:prose-headings:text-white
+                          prose-p:text-gray-800 dark:prose-p:text-gray-200
+                          prose-strong:text-blue-700 dark:prose-strong:text-blue-300
+                          prose-code:text-purple-700 dark:prose-code:text-purple-300
+                          prose-pre:bg-gray-100 dark:prose-pre:bg-gray-800/50`}
+                        dangerouslySetInnerHTML={{ __html: notes }}
+                      />
+                    ) : (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
+                        No notes available yet. Try refreshing.
+                      </p>
+                    )}
+                    
+                    {notes && (
+                      <button 
+                        onClick={() => handleCopy(notes.replace(/<[^>]*>/g, ''))}
+                        className="mt-4 w-full flex items-center justify-center py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        <Copy size={14} className="mr-2" />
+                        Copy Notes
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

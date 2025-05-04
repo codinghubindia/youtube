@@ -331,113 +331,91 @@ export async function generateNotes(
   videoTitle: string,
   videoId?: string
 ): Promise<string> {
-  const truncatedTranscript = transcript.length > 20000 
-    ? transcript.slice(0, 20000) + "... [transcript truncated for length]"
-    : transcript;
-  
-  const videoUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : '';
-  
   try {
-    const prompt = `As an expert educational content creator, transform this video titled "${videoTitle}"${videoUrl ? ` (${videoUrl})` : ''} into comprehensive study notes.
+    const prompt = `As an expert educational content creator, transform this video titled "${videoTitle}" into engaging, modern study notes.
 
-Initial Analysis:
-1. First, verify this is educational content
-2. Identify the main topic and learning objectives
-3. Determine the target knowledge level (beginner/intermediate/advanced)
-4. Note any prerequisites or required background knowledge
+Format the notes in a clean, modern style using this structure:
 
-Required Structure:
-1. Title and Overview
-   - Main topic and its importance
-   - Clear learning objectives
-   - Prerequisites if any
-   - Estimated time to learn
+<div class="study-notes">
+  <div class="note-header">
+    <h1 class="title">${videoTitle}</h1>
+    <div class="meta">
+      <span class="tag">📚 Study Guide</span>
+      <span class="time">⏱️ ${new Date().toLocaleDateString()}</span>
+    </div>
+  </div>
 
-2. Key Concepts
-   - Core ideas with clear explanations
-   - Technical terms defined in context
-   - Important concepts in **bold**
-   - Visual descriptions or diagrams explained
+  <div class="overview">
+    <h2>🎯 Learning Goals</h2>
+    <ul class="goals">
+      [Generate 3-4 clear learning objectives]
+    </ul>
+    
+    <div class="prerequisites">
+      <h3>📋 Before You Start</h3>
+      <p>[Required knowledge/tools]</p>
+      <p>⏱️ Estimated Time: [time estimate]</p>
+    </div>
+  </div>
 
-3. Detailed Breakdown
-   - Step-by-step explanations
-   - Examples with context
-   - Code or technical details properly formatted
-   - Common misconceptions addressed
+  <div class="main-content">
+    <div class="key-concepts">
+      <h2>🔑 Key Concepts</h2>
+      [Transform key concepts into clear, concise explanations with examples]
+    </div>
 
-4. Practical Applications
-   - Real-world examples from the video
-   - How to apply the knowledge
-   - Common use cases
-   - Industry relevance
+    <div class="detailed-notes">
+      <h2>📝 Detailed Notes</h2>
+      [Break down complex topics into digestible sections]
+    </div>
 
-5. Summary and Review
-   - Main takeaways
-   - Quick reference points
-   - Next steps for learning
-   - Related topics to explore
+    <div class="code-examples">
+      <h2>💻 Code Examples</h2>
+      [Include relevant code snippets in <pre><code> blocks]
+    </div>
 
-Format Requirements:
-1. Use semantic HTML (<h1>, <h2>, <h3>, <p>, <ul>, <li>)
-2. Keep paragraphs focused (2-3 sentences)
-3. Use lists for multiple related points
-4. Format code in <pre><code> blocks
-5. Bold important terms with <strong>
-6. Maintain clear section spacing
-7. Use proper indentation
+    <div class="best-practices">
+      <h2>✨ Best Practices</h2>
+      [List important tips and guidelines]
+    </div>
+  </div>
+
+  <div class="summary">
+    <h2>📌 Key Takeaways</h2>
+    <ul class="takeaways">
+      [List 3-4 main points to remember]
+    </ul>
+    
+    <div class="next-steps">
+      <h2>🚀 Next Steps</h2>
+      <ul>
+        [Suggest 2-3 ways to continue learning]
+      </ul>
+    </div>
+  </div>
+</div>
 
 Video Transcript:
-${truncatedTranscript}
-
-Note: Focus on accuracy and educational value. If the content is not educational, respond with a message indicating that.`;
+${transcript}`;
 
     const notesHtml = await callGeminiAPI(prompt);
-    
-    if (notesHtml.includes('encountered an issue') || notesHtml.includes('No API key configured')) {
-      return `
-<div class="error-message">
-  <h1>API Configuration Issue</h1>
-  <p>We're unable to generate study notes because the AI service is not properly configured.</p>
-  <p>Please make sure you have:</p>
-  <ul>
-    <li>Added a valid Gemini API key to your environment variables</li>
-    <li>Named the environment variable VITE_GEMINI_API_KEY</li>
-  </ul>
-  <p>Once configured, please refresh the page and try again.</p>
-</div>`;
-    }
-
-    // Check if content is not educational
-    if (notesHtml.toLowerCase().includes('not educational content')) {
-      return `
-<div class="warning-message">
-  <h1>Entertainment Content Detected</h1>
-  <p>This video appears to be entertainment rather than educational content.</p>
-  <p>For the best learning experience:</p>
-  <ul>
-    <li>Try watching tutorials or course videos</li>
-    <li>Look for content with clear learning objectives</li>
-    <li>Choose videos that teach specific skills or concepts</li>
-  </ul>
-  <p>Learning Mode works best with educational content focused on teaching and learning.</p>
-</div>`;
-    }
-    
-    return formatHtmlContent(notesHtml);
-    
+    return notesHtml;
   } catch (error) {
-    console.error('Error generating notes:', error);
+    // Return a nicely formatted error message
     return `
-<div class="error-message">
-  <h1>Unable to Generate Notes</h1>
-  <p>We're sorry, but we couldn't generate study notes for this video at the moment.</p>
-  <p>This could be due to:</p>
-  <ul>
-    <li>A temporary service disruption</li>
-    <li>Issues with processing the video transcript</li>
-    <li>API usage limitations</li>
-  </ul>
-  <p>Please try again later or contact support if the problem persists.</p>
+<div class="study-notes error">
+  <div class="note-header">
+    <h1>⚠️ Notes Unavailable</h1>
+  </div>
+  <div class="error-content">
+    <p>We couldn't generate study notes right now. Here's why:</p>
+    <ul>
+      <li>🔌 There might be a connection issue</li>
+      <li>🤖 The AI service might be temporarily unavailable</li>
+      <li>📝 The video content might need processing</li>
+    </ul>
+    <p>Please try again in a few moments!</p>
+  </div>
 </div>`;
   }
 }
@@ -456,92 +434,67 @@ export async function getChatResponse(
   videoTitle?: string,
   videoId?: string
 ): Promise<string> {
-  const truncatedTranscript = transcript.length > 10000 
-    ? transcript.slice(0, 10000) + "... [transcript truncated for length]"
-    : transcript;
-  
-  const videoUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : '';
-  
   try {
-    const prompt = `You are an expert educational AI tutor helping students understand "${videoTitle}"${videoUrl ? ` (${videoUrl})` : ''}.
+    const prompt = `You are a friendly and engaging AI tutor helping with "${videoTitle || 'this topic'}". 
+    
+Your personality:
+- Enthusiastic and encouraging 🌟
+- Uses emojis naturally (but don't overdo it)
+- Breaks down complex topics into simple explanations
+- Provides relevant examples
+- Asks follow-up questions to ensure understanding
+- Keeps responses concise and focused
 
-Student Question: "${userQuestion}"
+Format your responses like this:
 
-Response Requirements:
-1. Structure your response in this format:
-
-   a) Direct Answer Section
-      - Begin with a clear, concise answer
-      - Use <h3>Direct Answer</h3> as the section header
-      - Keep it to 2-3 sentences maximum
-      - Use <strong> tags for key terms
-
-   b) Detailed Explanation Section
-      - Use <h3>Detailed Explanation</h3> as the section header
-      - Break complex concepts into bullet points
-      - Use analogies when helpful
-      - Include step-by-step explanations if relevant
-      - Format each point as a list item
-
-   c) Examples Section (if applicable)
-      - Use <h3>Examples</h3> as the section header
-      - Include practical examples
-      - Use <pre><code> for code snippets
-      - Show real-world applications
-      - Format as a numbered list if multiple examples
-
-   d) Key Points Section
-      - Use <h3>Key Points</h3> as the section header
-      - List 3-5 most important takeaways
-      - Use bullet points
-      - Bold essential terms
-      - Keep each point concise
-
-   e) Next Steps Section
-      - Use <h3>Further Learning</h3> as the section header
-      - Suggest related topics
-      - Recommend resources
-      - Keep it brief and actionable
-
-2. Formatting Guidelines:
-   - Use proper HTML tags (<p>, <ul>, <li>, <code>, etc.)
-   - Keep paragraphs short (2-3 sentences)
-   - Use consistent spacing between sections
-   - Indent nested lists properly
-   - Use semantic HTML structure
-   - Format code examples cleanly
-   - Maintain professional but conversational tone
-
-3. Visual Structure:
-   - Start with a welcoming greeting
-   - Use clear section headers
-   - Include white space between sections
-   - End with an encouraging note
-   - Keep overall response concise and readable
+<div class="chat-message">
+  <div class="greeting">[Optional friendly greeting with emoji]</div>
+  
+  <div class="main-response">
+    [Your primary explanation - clear and concise]
+  </div>
+  
+  [If needed, ONE of these sections:]
+  <div class="code-example">
+    <div class="code-title">[What this code demonstrates]</div>
+    <pre><code>[Code snippet]</code></pre>
+  </div>
+  
+  <div class="key-points">
+    <ul>
+      [2-3 bullet points max]
+    </ul>
+  </div>
+  
+  <div class="comparison-table">
+    [If comparing concepts]
+  </div>
+  
+  <div class="follow-up">
+    [One engaging question to continue the conversation]
+  </div>
+</div>
 
 Video Context:
-${truncatedTranscript}`;
+${transcript}
 
-    const responseText = await callGeminiAPI(prompt);
-    
-    if (responseText.includes('encountered an issue') || responseText.includes('No API key configured')) {
-      return `
-<div class="error-message">
-  <p>I'm having trouble connecting to the AI service right now. This could be due to an issue with the API key configuration.</p>
-  <p>Please make sure the VITE_GEMINI_API_KEY environment variable is set with a valid API key, then refresh and try again.</p>
-</div>`;
-    }
-    
-    // Add wrapper div for consistent styling with notes section
-    const formattedResponse = formatHtmlContent(responseText);
-    return `<div class="chat-response prose prose-sm max-w-none dark:prose-invert">${formattedResponse}</div>`;
-    
+Question: "${userQuestion}"`;
+
+    const response = await callGeminiAPI(prompt);
+    return response;
   } catch (error) {
-    console.error('Error generating chat response:', error);
+    // Return a friendly error message
     return `
-<div class="error-message">
-  <p>I'm sorry, but I encountered an error while processing your question. This could be due to a temporary service disruption or API limitation.</p>
-  <p>Please try asking your question again or rephrase it. If the problem persists, you might want to try again later.</p>
+<div class="chat-message">
+  <div class="greeting">
+    <p>Oops! 🤔 I hit a small snag.</p>
+  </div>
+  <div class="main-response">
+    <p>I'm having trouble connecting to my knowledge base right now. But I'd love to help you understand ${videoTitle || 'this topic'} once I'm back up and running!</p>
+  </div>
+  <div class="follow-up">
+    <p>Could you try asking your question again in a moment? 🙏</p>
+  </div>
 </div>`;
   }
 }

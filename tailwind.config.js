@@ -66,8 +66,141 @@ export default {
           '0%': { transform: 'translateX(0)', opacity: 1 },
           '100%': { transform: 'translateX(-100%)', opacity: 0 }
         }
-      }
+      },
+      typography: {
+        DEFAULT: {
+          css: {
+            '.study-notes': {
+              '.note-header': {
+                marginBottom: '2rem',
+                '.title': {
+                  fontSize: '2rem',
+                  fontWeight: '700',
+                  color: 'var(--tw-prose-headings)',
+                },
+                '.meta': {
+                  display: 'flex',
+                  gap: '1rem',
+                  marginTop: '0.5rem',
+                  '.tag, .time': {
+                    fontSize: '0.875rem',
+                    color: 'var(--tw-prose-captions)',
+                  },
+                },
+              },
+              '.overview, .main-content, .summary': {
+                marginBottom: '2rem',
+              },
+              'h2': {
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontSize: '1.5rem',
+                marginTop: '2rem',
+                marginBottom: '1rem',
+              },
+              'h3': {
+                fontSize: '1.25rem',
+                marginTop: '1.5rem',
+                marginBottom: '0.75rem',
+              },
+              '.goals, .takeaways': {
+                listStyleType: 'none',
+                padding: 0,
+                'li': {
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '0.5rem',
+                  '&:before': {
+                    content: '"✓"',
+                    color: 'var(--tw-prose-bullets)',
+                  },
+                },
+              },
+              '.prerequisites': {
+                backgroundColor: 'var(--tw-prose-pre-bg)',
+                padding: '1rem',
+                borderRadius: '0.5rem',
+                marginTop: '1rem',
+              },
+              '.code-examples pre': {
+                margin: '1rem 0',
+              },
+              '&.error': {
+                '.error-content': {
+                  backgroundColor: 'var(--tw-prose-pre-bg)',
+                  padding: '1rem',
+                  borderRadius: '0.5rem',
+                  marginTop: '1rem',
+                },
+              },
+            },
+            '.chat-message': {
+              '.greeting': {
+                fontSize: '1.1rem',
+                fontWeight: '500',
+                marginBottom: '0.5rem',
+              },
+              '.main-response': {
+                marginBottom: '1rem',
+              },
+              '.code-example': {
+                marginTop: '1rem',
+                '.code-title': {
+                  fontSize: '0.875rem',
+                  color: 'var(--tw-prose-captions)',
+                  marginBottom: '0.25rem',
+                },
+                'pre': {
+                  margin: '0',
+                },
+              },
+              '.key-points': {
+                marginTop: '1rem',
+                'ul': {
+                  listStyleType: 'none',
+                  padding: 0,
+                  'li': {
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    marginBottom: '0.5rem',
+                    '&:before': {
+                      content: '"•"',
+                      color: 'var(--tw-prose-bullets)',
+                    },
+                  },
+                },
+              },
+              '.comparison-table': {
+                marginTop: '1rem',
+                overflowX: 'auto',
+                'table': {
+                  width: '100%',
+                  textAlign: 'left',
+                  fontSize: '0.875rem',
+                  'th, td': {
+                    padding: '0.5rem',
+                    borderColor: 'var(--tw-prose-td-borders)',
+                  },
+                  'th': {
+                    backgroundColor: 'var(--tw-prose-th-backgrounds)',
+                  },
+                },
+              },
+              '.follow-up': {
+                marginTop: '1rem',
+                fontStyle: 'italic',
+                color: 'var(--tw-prose-captions)',
+              },
+            },
+          },
+        },
+      },
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'),
+  ],
 };

@@ -46,29 +46,127 @@ export const getEducationalVideos = (videos: YouTubeVideo[], maxDurationSeconds 
   );
 };
 
-// Helper function to determine if a video is educational based on title, description, and tags
+// Enhanced educational content detection
 export const isEducationalContent = (video: YouTubeVideo): boolean => {
   const educationalKeywords = [
+    // Tutorial and Learning Keywords
     'learn', 'tutorial', 'course', 'education', 'educational', 'how to', 
-    'programming', 'coding', 'development', 'beginner', 'introduction', 
-    'guide', 'explained', 'for beginners', 'crash course', 'lesson'
+    'guide', 'explained', 'for beginners', 'crash course', 'lesson',
+    
+    // Programming and Development Keywords
+    'programming', 'coding', 'development', 'code', 'developer', 'web dev',
+    'javascript', 'python', 'java', 'react', 'node.js', 'angular', 'vue',
+    'html', 'css', 'backend', 'frontend', 'full stack', 'api', 'rest',
+    
+    // Technology Keywords
+    'tech', 'software', 'computer science', 'data structure', 'algorithm',
+    'database', 'cloud', 'devops', 'machine learning', 'artificial intelligence',
+    
+    // Project Keywords
+    'project', 'build', 'create', 'implement', 'develop', 'setup', 'configure',
+    
+    // Specific Technologies
+    'react.js', 'node.js', 'express.js', 'mongodb', 'sql', 'docker',
+    'kubernetes', 'aws', 'azure', 'git', 'github', 'typescript'
+  ];
+
+  const nonEducationalKeywords = [
+    'gameplay', 'reaction', 'vlog', 'prank', 'funny', 'meme', 'music video',
+    'trailer', 'movie', 'entertainment', 'gaming', 'stream', 'live', 'podcast'
   ];
 
   const title = video.snippet.title.toLowerCase();
   const description = video.snippet.description.toLowerCase();
-  const tags = video.snippet.tags || [];
+  const tags = video.snippet.tags?.map(tag => tag.toLowerCase()) || [];
   
-  // Check title and description for educational keywords
+  // Check for educational indicators
   const hasEducationalKeyword = educationalKeywords.some(keyword => 
-    title.includes(keyword) || description.includes(keyword)
+    title.includes(keyword) || description.includes(keyword) || tags.includes(keyword)
   );
   
-  // Check if any tags match educational keywords
-  const hasEducationalTag = tags.some(tag => 
-    educationalKeywords.includes(tag.toLowerCase())
+  // Check for non-educational indicators
+  const hasNonEducationalKeyword = nonEducationalKeywords.some(keyword =>
+    title.includes(keyword) || description.includes(keyword) || tags.includes(keyword)
   );
   
-  return hasEducationalKeyword || hasEducationalTag;
+  // Additional checks for educational content
+  const isFromEducationalChannel = [
+    'freecodecamp',
+    'traversy media',
+    'web dev simplified',
+    'fireship',
+    'academind',
+    'net ninja',
+    'dev ed',
+    'coding train',
+    'programming with mosh',
+    'kevin powell'
+  ].some(channel => video.snippet.channelTitle.toLowerCase().includes(channel));
+
+  const hasTutorialStructure = 
+    title.includes('#') || // Part of a series
+    title.match(/part\s*\d+/i) || // Part numbering
+    title.match(/\d+\s*-/i) || // Numbered series
+    description.includes('github.com') || // Has code repository
+    description.includes('source code') || // References code
+    tags.some(tag => tag.includes('tutorial') || tag.includes('education')); // Educational tags
+
+  // Scoring system for educational content
+  let educationalScore = 0;
+  if (hasEducationalKeyword) educationalScore += 2;
+  if (isFromEducationalChannel) educationalScore += 2;
+  if (hasTutorialStructure) educationalScore += 1;
+  if (hasNonEducationalKeyword) educationalScore -= 2;
+
+  return educationalScore > 0;
+};
+
+// Enhanced video categorization
+export interface VideoCategory {
+  id: string;
+  name: string;
+  keywords: string[];
+}
+
+export const videoCategories: VideoCategory[] = [
+  {
+    id: 'web_development',
+    name: 'Web Development',
+    keywords: ['html', 'css', 'javascript', 'web dev', 'frontend', 'backend', 'react', 'vue', 'angular']
+  },
+  {
+    id: 'programming',
+    name: 'Programming',
+    keywords: ['python', 'java', 'c++', 'programming', 'coding', 'algorithms', 'data structures']
+  },
+  {
+    id: 'devops',
+    name: 'DevOps',
+    keywords: ['docker', 'kubernetes', 'aws', 'azure', 'devops', 'ci/cd', 'jenkins']
+  },
+  {
+    id: 'database',
+    name: 'Database',
+    keywords: ['sql', 'mongodb', 'postgresql', 'mysql', 'database', 'nosql']
+  },
+  {
+    id: 'mobile_dev',
+    name: 'Mobile Development',
+    keywords: ['android', 'ios', 'react native', 'flutter', 'mobile dev', 'swift']
+  }
+];
+
+// Get video category
+export const getVideoCategory = (video: YouTubeVideo): string => {
+  const content = `${video.snippet.title} ${video.snippet.description} ${video.snippet.tags?.join(' ')}`.toLowerCase();
+  
+  for (const category of videoCategories) {
+    if (category.keywords.some(keyword => content.includes(keyword))) {
+      return category.name;
+    }
+  }
+  
+  return 'General Programming';
 };
 
 // Mock video data to use when API quota is exceeded
@@ -703,7 +801,7 @@ export const mockVideos: YouTubeVideo[] = [
 // Additional short educational videos for learning mode
 export const mockEducationalVideos: YouTubeVideo[] = [
   {
-    id: 'eduVideo1',
+    id: 'qz0aGYrrlhU',  // HTML Crash Course For Absolute Beginners
     snippet: {
       title: 'HTML Basics in 5 Minutes',
       description: 'Learn the basics of HTML in just 5 minutes. This quick tutorial covers the essential elements you need to know.',
@@ -729,7 +827,7 @@ export const mockEducationalVideos: YouTubeVideo[] = [
     durationInSeconds: 285 // 4m 45s
   },
   {
-    id: 'eduVideo2',
+    id: 'K74l26pE4YA',  // CSS Flexbox Tutorial by Kevin Powell
     snippet: {
       title: 'CSS Flexbox in 3 Minutes',
       description: 'Master CSS Flexbox layout in just 3 minutes with this quick and focused tutorial.',
@@ -755,7 +853,7 @@ export const mockEducationalVideos: YouTubeVideo[] = [
     durationInSeconds: 200 // 3m 20s
   },
   {
-    id: 'eduVideo3',
+    id: 'h33Srr5J9nY',  // JavaScript Arrow Functions by Web Dev Simplified
     snippet: {
       title: 'JavaScript Arrow Functions Explained',
       description: 'Learn all about arrow functions in JavaScript in under 5 minutes.',
@@ -781,7 +879,7 @@ export const mockEducationalVideos: YouTubeVideo[] = [
     durationInSeconds: 255 // 4m 15s
   },
   {
-    id: 'eduVideo4',
+    id: 'HkdAHXoRtos',  // Git & GitHub Tutorial by freeCodeCamp
     snippet: {
       title: 'Git Basics in 4 Minutes',
       description: 'A quick tutorial on the most essential Git commands you need to know',
@@ -807,7 +905,7 @@ export const mockEducationalVideos: YouTubeVideo[] = [
     durationInSeconds: 252 // 4m 12s
   },
   {
-    id: 'eduVideo5',
+    id: 'TNhaISOUy6Q',  // React Hooks Tutorial by Web Dev Simplified
     snippet: {
       title: 'React Hooks in 5 Minutes',
       description: 'Learn the basics of React Hooks including useState and useEffect in this quick tutorial for beginners.',
@@ -833,7 +931,7 @@ export const mockEducationalVideos: YouTubeVideo[] = [
     durationInSeconds: 285 // 4m 45s
   },
   {
-    id: 'eduVideo6',
+    id: 'UBOj6rqRUME',  // Tailwind CSS Tutorial by Tailwind Labs
     snippet: {
       title: 'Tailwind CSS Crash Course in 4 Minutes',
       description: 'Get up to speed with Tailwind CSS basics in just 4 minutes. Learn the core concepts and utility-first approach.',
@@ -859,7 +957,7 @@ export const mockEducationalVideos: YouTubeVideo[] = [
     durationInSeconds: 238 // 3m 58s
   },
   {
-    id: 'eduVideo7',
+    id: 'ahCwqrYpIuM',  // TypeScript Tutorial by Fireship
     snippet: {
       title: 'TypeScript in 5 Minutes - Quick Start Guide',
       description: 'A rapid introduction to TypeScript basics including types, interfaces, and how to set up a project.',
@@ -885,7 +983,7 @@ export const mockEducationalVideos: YouTubeVideo[] = [
     durationInSeconds: 292 // 4m 52s
   },
   {
-    id: 'eduVideo8',
+    id: 'pGYAg7TMmp0',  // Docker Tutorial by Fireship
     snippet: {
       title: 'Docker Containers Explained in 3 Minutes',
       description: 'Learn the fundamentals of Docker containers and why they are so important in modern development.',
@@ -911,7 +1009,7 @@ export const mockEducationalVideos: YouTubeVideo[] = [
     durationInSeconds: 192 // 3m 12s
   },
   {
-    id: 'eduVideo9',
+    id: 'lsMQRaeKNDk',  // Node.js API Tutorial by Traversy Media
     snippet: {
       title: 'How to Build an API with Node.js in 5 Minutes',
       description: 'Quick tutorial on building a simple REST API using Node.js and Express in just 5 minutes.',
@@ -1005,7 +1103,7 @@ export const getVideoById = (id: string): EducationalVideo | undefined => {
   return educationalVideos.find(video => video.id === id);
 };
 
-// Get mock transcript for a video
+// Enhanced mock transcript generation
 export const getMockTranscript = (videoId: string): string => {
   const video = getVideoById(videoId);
   
@@ -1013,43 +1111,107 @@ export const getMockTranscript = (videoId: string): string => {
     return 'Transcript not available.';
   }
 
-  // Return appropriate mock transcript based on video category
-  switch (video.category) {
+  const category = getVideoCategory({ 
+    id: videoId, 
+    snippet: { 
+      title: video.title, 
+      description: video.description,
+      tags: [],
+      channelTitle: video.channel,
+      channelId: '',
+      publishedAt: '',
+      thumbnails: { default: { url: '', width: 0, height: 0 } }
+    },
+    contentDetails: { duration: video.duration },
+    statistics: { viewCount: '0', likeCount: '0', commentCount: '0' },
+    isEducational: true,
+    durationInSeconds: 0
+  });
+
+  // Return category-specific mock transcript
+  switch (category) {
     case 'Web Development':
-      return `Welcome to this comprehensive tutorial on ${video.title}. 
+      return `Welcome to this web development tutorial on ${video.title}.
       
-Today we'll explore React.js fundamentals and best practices, starting with component architecture and how to structure your applications for scalability.
+In this video, we'll cover essential web development concepts and practical implementation.
 
-We'll cover essential topics like:
-1. Component lifecycle and hooks
-2. State management patterns
-3. Performance optimization
-4. Error handling and debugging
+Key topics include:
+1. Setting up the development environment
+2. Understanding the core concepts
+3. Building the application step by step
+4. Best practices and common pitfalls
+5. Testing and deployment strategies
 
-By the end of this video, you'll have a solid foundation in React development.`;
+By the end of this tutorial, you'll have hands-on experience with these concepts.`;
     
-    case 'Testing':
-      return `Welcome to this tutorial on React Testing Library.
+    case 'Programming':
+      return `Welcome to this programming tutorial on ${video.title}.
+      
+We'll explore fundamental programming concepts and their practical applications.
 
-We'll learn how to write effective tests for React applications, covering:
-1. Unit testing components
-2. Integration testing
-3. Mocking API calls
-4. Testing user interactions
+Topics covered:
+1. Core programming principles
+2. Code organization and structure
+3. Efficient algorithms and patterns
+4. Error handling and debugging
+5. Performance optimization
 
-By following testing best practices, you'll be able to ensure your applications are reliable and maintainable.`;
+You'll learn how to write clean, efficient, and maintainable code.`;
+    
+    case 'DevOps':
+      return `Welcome to this DevOps tutorial on ${video.title}.
+      
+Learn about modern DevOps practices and tools for efficient development and deployment.
+
+We'll cover:
+1. Container orchestration and management
+2. CI/CD pipeline setup
+3. Cloud infrastructure deployment
+4. Monitoring and logging
+5. Security best practices
+
+Master the tools and practices used in modern DevOps workflows.`;
+    
+    case 'Database':
+      return `Welcome to this database tutorial on ${video.title}.
+      
+Explore database concepts and practical implementation strategies.
+
+Key areas covered:
+1. Database design principles
+2. Query optimization
+3. Data modeling
+4. Transaction management
+5. Performance tuning
+
+Learn how to build and maintain efficient database systems.`;
+    
+    case 'Mobile Development':
+      return `Welcome to this mobile development tutorial on ${video.title}.
+      
+Learn mobile app development concepts and best practices.
+
+Topics include:
+1. UI/UX design principles
+2. State management
+3. API integration
+4. Performance optimization
+5. Platform-specific features
+
+Build professional-quality mobile applications with confidence.`;
     
     default:
-      return `Welcome to this tutorial on ${video.title}.
-
-We'll cover fundamental concepts and best practices, with practical examples and real-world applications.
+      return `Welcome to this comprehensive tutorial on ${video.title}.
+      
+We'll cover fundamental concepts and practical applications in software development.
 
 Key topics include:
 1. Core principles and concepts
 2. Best practices and patterns
-3. Common challenges and solutions
-4. Advanced techniques and optimizations
+3. Implementation strategies
+4. Testing and validation
+5. Deployment and maintenance
 
-By the end of this video, you'll have a comprehensive understanding of the subject matter.`;
+By the end of this tutorial, you'll have a solid understanding of the subject matter.`;
   }
 };
