@@ -125,35 +125,35 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
 
       try {
         // Fetch transcript first
-        const transcriptText = await getTranscript(videoId);
-        if (!mounted) return;
-        setTranscript(transcriptText);
-
+          const transcriptText = await getTranscript(videoId);
+          if (!mounted) return;
+          setTranscript(transcriptText);
+          
         // Generate summary and notes in parallel
         const [summaryPoints, notesContent] = await Promise.all([
           generateSummary(transcriptText, videoTitle, videoId),
           generateNotes(transcriptText, videoTitle, videoId)
         ]);
 
-        if (!mounted) return;
+          if (!mounted) return;
 
-        setSummaryPoints(summaryPoints);
+          setSummaryPoints(summaryPoints);
         setNotes(notesContent);
-
+          
         // If API is not configured, show mock data with realistic delays
         if (!apiConfigured) {
           const mockData = getMockData(videoId, videoTitle);
           setTimeout(() => {
-            if (!mounted) return;
+          if (!mounted) return;
             setSummaryPoints(mockData.summaryPoints);
             setNotes(mockData.notes);
             setMessages(prev => [...prev, ...mockData.messages]);
           }, 1500);
         }
-      } catch (error) {
-        console.error('Error initializing content:', error);
-        setSummaryPoints(['Failed to generate summary. Please try again later.']);
-        setNotes('Failed to generate notes. Please try again later.');
+        } catch (error) {
+          console.error('Error initializing content:', error);
+          setSummaryPoints(['Failed to generate summary. Please try again later.']);
+          setNotes('Failed to generate notes. Please try again later.');
       } finally {
         if (mounted) {
           setIsLoadingSummary(false);
@@ -176,12 +176,12 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
 
   // Helper function to get mock data
   const getMockData = (videoId: string, title: string) => {
-    const video = getVideoById(videoId);
-    const mockTranscript = getMockTranscript(videoId);
-
+        const video = getVideoById(videoId);
+        const mockTranscript = getMockTranscript(videoId);
+        
     const mockMessages: Message[] = [
-      { 
-        role: 'ai', 
+            { 
+              role: 'ai', 
         content: `<p>Hi there! I'm your learning assistant for <strong>${video?.title || title}</strong>. I can help you understand the concepts covered in this tutorial.</p>
         <p>Feel free to ask questions about ${video?.category === 'Web Development' ? 'React components, hooks, state management,' : ''} or any other topics discussed!</p>`,
         timestamp: new Date()
@@ -204,12 +204,12 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
           <li><strong>Components:</strong> Building blocks of React applications</li>
           <li><strong>Hooks:</strong> Modern approach to state management</li>
           <li><strong>Performance:</strong> Optimization techniques and best practices</li>
-        </ul>
+            </ul>
       `,
       messages: mockMessages
     };
   };
-
+  
   // Fetch summary with realistic educational content
   const fetchSummary = async (transcriptText: string) => {
     setIsLoadingSummary(true);
@@ -239,10 +239,10 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
         ]);
       }
     } finally {
-      setIsLoadingSummary(false);
+        setIsLoadingSummary(false);
     }
   };
-
+  
   // Handle tab change with loading states
   const handleTabChange = (tab: 'summary' | 'chat' | 'notes') => {
     setActiveTab(tab);
@@ -517,27 +517,105 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
       <div 
         ref={sidebarRef}
         className={`
-          fixed right-0 top-[56px] h-[calc(100vh-56px)] w-[400px]
+          fixed bottom-4 right-4 
           bg-white dark:bg-zinc-900 
-          border-l border-gray-200 dark:border-zinc-700
-          shadow-lg transform transition-transform duration-300 ease-in-out
-          overflow-hidden
-          ${isVisible ? 'translate-x-0' : 'translate-x-full'}
-          ${isMobileView ? 'bottom-0 w-full h-auto' : ''}
+          border border-gray-200 dark:border-zinc-700
+          shadow-xl rounded-2xl
+          transform transition-all duration-300 ease-in-out
+          ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}
+          z-50 overflow-hidden
+          max-w-[calc(100vw-2rem)] w-[400px]
         `}
-        style={isMobileView ? { height: `${bottomSheetHeight}px` } : undefined}
+        style={{ 
+          height: `${bottomSheetHeight}px`,
+          maxHeight: 'calc(100vh - 6rem)'
+        }}
       >
+        {/* Drag handle for floating window */}
+        <div 
+          className="w-full flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-zinc-800 cursor-move touch-none"
+          onTouchStart={(e) => {
+            const touch = e.touches[0];
+            const startY = touch.clientY;
+            const startHeight = bottomSheetHeight;
+            const element = sidebarRef.current;
+            if (!element) return;
+
+            const startRect = element.getBoundingClientRect();
+            let lastY = startY;
+            let lastX = touch.clientX;
+
+            const handleTouchMove = (e: TouchEvent) => {
+              const touch = e.touches[0];
+              const deltaY = lastY - touch.clientY;
+              const deltaX = lastX - touch.clientX;
+              lastY = touch.clientY;
+              lastX = touch.clientX;
+
+              // Update position
+              const newTop = element.offsetTop - deltaY;
+              const newLeft = element.offsetLeft - deltaX;
+
+              // Keep within viewport bounds
+              const maxTop = window.innerHeight - element.offsetHeight;
+              const maxLeft = window.innerWidth - element.offsetWidth;
+
+              element.style.top = `${Math.min(Math.max(0, newTop), maxTop)}px`;
+              element.style.left = `${Math.min(Math.max(0, newLeft), maxLeft)}px`;
+              element.style.right = 'auto';
+              element.style.bottom = 'auto';
+
+              // Adjust height if needed
+              const newHeight = Math.min(
+                Math.max(startHeight - deltaY, window.innerHeight * 0.3),
+                window.innerHeight * 0.8
+              );
+              setBottomSheetHeight(newHeight);
+            };
+
+            const handleTouchEnd = () => {
+              document.removeEventListener('touchmove', handleTouchMove);
+              document.removeEventListener('touchend', handleTouchEnd);
+            };
+
+            document.addEventListener('touchmove', handleTouchMove, { passive: false });
+            document.addEventListener('touchend', handleTouchEnd);
+          }}
+        >
+          <div className="flex items-center space-x-2">
+            <div className="w-12 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              Learning Assistant
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              if (sidebarRef.current) {
+                sidebarRef.current.style.top = '';
+                sidebarRef.current.style.left = '';
+                sidebarRef.current.style.right = '1rem';
+                sidebarRef.current.style.bottom = '1rem';
+              }
+            }}
+            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 dark:text-gray-400">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+            </svg>
+          </button>
+        </div>
+
         {/* Tabs */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-zinc-700">
-          <div className="flex space-x-4">
+          <div className="flex space-x-2">
             {['chat', 'summary', 'notes'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => handleTabChange(tab as 'summary' | 'chat' | 'notes')}
-                className={`px-3 py-2 rounded-lg transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
                   activeTab === tab 
-                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' 
-                    : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 font-medium' 
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
                 }`}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -545,30 +623,132 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
             ))}
           </div>
         </div>
-        
-        {/* Content area */}
-        <div className="h-[calc(100%-56px)] overflow-y-auto">
-          {/* API warning */}
-          {!apiConfigured && (
-            <div className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-sm p-3 m-4 rounded-lg flex items-start">
-              <AlertTriangle size={16} className="mr-2 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium">Gemini API key not configured</p>
-                <p className="mt-1 text-xs">Using mock data for demonstration purposes.</p>
-                <button 
-                  onClick={testGeminiAPI} 
-                  className="mt-2 px-3 py-1 bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-100 rounded text-xs font-medium inline-flex items-center"
+            
+        {/* Content area with proper mobile scrolling */}
+        <div className="flex-1 overflow-hidden" style={{ height: `calc(${bottomSheetHeight}px - 88px)` }}>
+          <div className="h-full overflow-y-auto overscroll-contain pb-safe">
+            {/* API warning */}
+            {!apiConfigured && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-sm p-3 m-4 rounded-lg flex items-start">
+                <AlertTriangle size={16} className="mr-2 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">Gemini API key not configured</p>
+                  <p className="mt-1 text-xs">Using mock data for demonstration purposes.</p>
+                  <button 
+                    onClick={testGeminiAPI} 
+                    className="mt-2 px-3 py-1 bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-100 rounded text-xs font-medium inline-flex items-center"
+                  >
+                    Test API Connection
+                  </button>
+                </div>
+              </div>
+            )}
+              
+            {/* Dynamic content based on active tab */}
+            <div className="p-4">
+              {activeTab === 'summary' && (
+                <div className="space-y-3">
+                  {isLoadingSummary ? (
+                    <div className="flex flex-col items-center justify-center h-32">
+                      <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Generating summary...</p>
+                    </div>
+                  ) : (
+                    <>
+                      {summaryPoints.map((point, index) => (
+                        <div 
+                          key={index} 
+                          className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg flex items-start"
+                        >
+                          <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium mr-2 flex-shrink-0 mt-0.5">
+                            {index + 1}
+                          </span>
+                          <p className="text-sm text-gray-800 dark:text-gray-200">{point}</p>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'chat' && (
+                <div className="space-y-4">
+                  {messages.map((message, index) => (
+                    <div 
+                      key={index}
+                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div 
+                        className={`max-w-[85%] rounded-lg p-3 ${
+                          message.role === 'user'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-800'
+                        }`}
+                      >
+                        {renderMessageContent(message.content)}
+                      </div>
+                    </div>
+                  ))}
+
+                  {isLoadingChat && (
+                    <div className="flex justify-start">
+                      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
+                        <div className="flex space-x-2">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'notes' && (
+                <div>
+                  {isLoadingNotes ? (
+                    <div className="flex flex-col items-center justify-center h-32">
+                      <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Generating notes...</p>
+                    </div>
+                  ) : (
+                    <div 
+                      className="prose prose-sm max-w-none dark:prose-invert"
+                      dangerouslySetInnerHTML={{ __html: notes }}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Chat input for mobile */}
+          {activeTab === 'chat' && (
+            <div className="sticky bottom-0 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 p-4 pb-safe">
+              <div className="relative flex items-center">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ask me anything about the video..."
+                  className="w-full pl-4 pr-12 py-2 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white rounded-full
+                    border border-gray-200 dark:border-gray-700
+                    focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-400/50
+                    placeholder-gray-500 dark:placeholder-gray-400"
+                  disabled={isLoadingChat}
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={isLoadingChat || !inputValue.trim()}
+                  className="absolute right-2 p-2 text-blue-600 dark:text-blue-400 disabled:opacity-50"
                 >
-                  Test API Connection
+                  <Send size={18} />
                 </button>
               </div>
             </div>
           )}
-          
-          {/* Dynamic content based on active tab */}
-          <div className="h-full overflow-y-auto p-4">
-            {/* ... existing tab content ... */}
-          </div>
         </div>
       </div>
     );

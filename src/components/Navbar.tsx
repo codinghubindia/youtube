@@ -64,7 +64,7 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
               <Menu size={20} className="dark:text-white" />
             </button>
             <Link to="/" className="flex items-center">
-              <div className="flex items-center text-youtube-red">
+              <div className="flex items-center text-youtube-black">
                 <svg 
                   viewBox="0 0 90 20" 
                   preserveAspectRatio="xMidYMid meet" 
