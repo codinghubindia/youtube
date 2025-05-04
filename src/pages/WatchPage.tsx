@@ -137,15 +137,6 @@ const WatchPage: React.FC = () => {
     return hours * 3600 + minutes * 60 + seconds;
   };
   
-  // Fetch learning-based recommendations
-  const fetchLearningRecommendations = async () => {
-    try {
-      await getPersonalizedRecommendations(8);
-      // We're calling this function but not using the results anymore
-    } catch (error) {
-      console.error('Error fetching learning recommendations:', error);
-    }
-  };
 
   // Cleanup interval on component unmount
   useEffect(() => {
@@ -206,20 +197,14 @@ const WatchPage: React.FC = () => {
     fetchVideoData();
   }, [id]);
 
-  // Toggle learning sidebar
-  const toggleLearningSidebar = () => {
-    setIsSidebarVisible(!isSidebarVisible);
-  };
+
 
   // Toggle comment section visibility
   const toggleComments = () => {
     setShowComments(!showComments);
   };
 
-  // Toggle chat window maximize/minimize
-  const toggleChatSize = () => {
-    setChatMaximized(!chatMaximized);
-  };
+
 
   // Toggle description expansion
   const toggleDescription = () => {
@@ -354,6 +339,41 @@ const WatchPage: React.FC = () => {
               {isDescriptionExpanded ? 'Show less' : 'Show more'}
             </button>
           </div>
+          {/* Desktop comment section (first 2 comments) */}
+        <div className="hidden lg:block bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 mb-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-medium dark:text-white">
+              {video.statistics && parseInt(video.statistics.commentCount || '0')} Comments
+            </h3>
+          </div>
+          
+          <div className="space-y-4">
+            {comments.slice(0, 15).map((comment) => (
+              <div key={comment.id} className="flex gap-3">
+                <img 
+                  src={comment.snippet.topLevelComment.snippet.authorProfileImageUrl} 
+                  alt={comment.snippet.topLevelComment.snippet.authorDisplayName}
+                  className="w-8 h-8 rounded-full"
+                />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-medium dark:text-white text-sm">
+                      {comment.snippet.topLevelComment.snippet.authorDisplayName}
+                    </h4>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {formatTimeAgo(comment.snippet.topLevelComment.snippet.publishedAt)}
+                    </span>
+                  </div>
+                  <p className="text-xs mt-1 dark:text-white">
+                    {comment.snippet.topLevelComment.snippet.textDisplay.length > 120 
+                      ? `${comment.snippet.topLevelComment.snippet.textDisplay.substring(0, 120)}...` 
+                      : comment.snippet.topLevelComment.snippet.textDisplay}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
           
           {/* Comment section toggle for mobile */}
           <div className="lg:hidden">
@@ -412,42 +432,7 @@ const WatchPage: React.FC = () => {
 
       {/* Right sidebar for related videos */}
       <div className={`w-full lg:w-[350px] lg:flex-shrink-0 space-y-4 ${isMobileView && !showComments ? 'mt-4' : ''}`}>
-        {/* Desktop comment section (first 2 comments) */}
-        <div className="hidden lg:block bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 mb-4">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-medium dark:text-white">
-              {video.statistics && parseInt(video.statistics.commentCount || '0')} Comments
-            </h3>
-          </div>
-          
-          <div className="space-y-4">
-            {comments.slice(0, 2).map((comment) => (
-              <div key={comment.id} className="flex gap-3">
-                <img 
-                  src={comment.snippet.topLevelComment.snippet.authorProfileImageUrl} 
-                  alt={comment.snippet.topLevelComment.snippet.authorDisplayName}
-                  className="w-8 h-8 rounded-full"
-                />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-medium dark:text-white text-sm">
-                      {comment.snippet.topLevelComment.snippet.authorDisplayName}
-                    </h4>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {formatTimeAgo(comment.snippet.topLevelComment.snippet.publishedAt)}
-                    </span>
-                  </div>
-                  <p className="text-xs mt-1 dark:text-white">
-                    {comment.snippet.topLevelComment.snippet.textDisplay.length > 120 
-                      ? `${comment.snippet.topLevelComment.snippet.textDisplay.substring(0, 120)}...` 
-                      : comment.snippet.topLevelComment.snippet.textDisplay}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        
+
         {/* Related videos */}
         <div>
           <h3 className="font-medium mb-3 dark:text-white">Related videos</h3>
@@ -463,7 +448,7 @@ const WatchPage: React.FC = () => {
       {learningMode && sidebarVisible && (
         <div 
           className={`fixed ${isMobileView ? 'inset-x-0 bottom-0 z-50' : 
-            chatMaximized ? 'top-16 right-4 bottom-4 w-[450px] z-40' : 'bottom-4 right-4 w-[350px] z-40'}`}
+            chatMaximized ? 'top-16 right-4 bottom-4 w-[450px] z-40' : 'top-16 right-4 bottom-4 w-[350px] z-40'}`}
         >
           <div className={`bg-white dark:bg-gray-900 rounded-t-xl ${!isMobileView && 'rounded-b-xl'} shadow-xl flex flex-col h-full overflow-hidden border border-blue-200 dark:border-blue-800`}>
             {/* Header with maximize and close buttons */}

@@ -234,7 +234,7 @@ By the end of this video, you'll have a solid foundation in React development an
         ]);
       }
     } finally {
-      setIsLoadingSummary(false);
+        setIsLoadingSummary(false);
     }
   };
   
@@ -673,10 +673,10 @@ By the end of this video, you'll have a solid foundation in React development an
                                 </div>
                               ) : (
                                 <>
-                                  <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium mr-2 flex-shrink-0 mt-0.5">
-                                    {index + 1}
-                                  </span>
-                                  <p className="text-sm text-gray-800 dark:text-gray-200">{point}</p>
+                              <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium mr-2 flex-shrink-0 mt-0.5">
+                                {index + 1}
+                              </span>
+                              <p className="text-sm text-gray-800 dark:text-gray-200">{point}</p>
                                 </>
                               )}
                             </div>
@@ -689,14 +689,14 @@ By the end of this video, you'll have a solid foundation in React development an
                       </div>
                       
                       {summaryPoints.length > 0 && !summaryPoints[0].includes("Failed to generate summary") && (
-                        <button 
-                          onClick={() => handleCopy(summaryPoints.join('\n\n'))}
+                            <button 
+                              onClick={() => handleCopy(summaryPoints.join('\n\n'))}
                           className="mt-4 w-full flex items-center justify-center py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300"
-                        >
-                          <Copy size={14} className="mr-2" />
-                          Copy Summary
-                        </button>
-                      )}
+                            >
+                              <Copy size={14} className="mr-2" />
+                              Copy Summary
+                            </button>
+                        )}
                     </div>
                   )}
                 </div>
@@ -950,10 +950,10 @@ By the end of this video, you'll have a solid foundation in React development an
                           </div>
                         ) : (
                           <>
-                            <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium mr-2 flex-shrink-0 mt-0.5">
-                              {index + 1}
-                            </span>
-                            <p className="text-sm text-gray-800 dark:text-gray-200">{point}</p>
+                        <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium mr-2 flex-shrink-0 mt-0.5">
+                          {index + 1}
+                        </span>
+                        <p className="text-sm text-gray-800 dark:text-gray-200">{point}</p>
                           </>
                         )}
                       </div>
