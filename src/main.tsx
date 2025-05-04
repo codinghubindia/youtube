@@ -24,9 +24,18 @@ if (prefersDark) {
   document.documentElement.classList.add('dark');
 }
 
+// Create a component that wraps MainLayout with providers
+const LayoutWithProviders = () => (
+  <YouTubeProvider>
+    <LearningModeProvider>
+      <MainLayout />
+    </LearningModeProvider>
+  </YouTubeProvider>
+);
+
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route path="/" element={<MainLayout />}>
+    <Route path="/" element={<LayoutWithProviders />}>
       <Route index element={<HomePage />} />
       <Route path="watch/:id" element={
         <ErrorBoundary>
@@ -72,11 +81,7 @@ const router = createBrowserRouter(
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <YouTubeProvider>
-        <LearningModeProvider>
-          <RouterProvider router={router} />
-        </LearningModeProvider>
-      </YouTubeProvider>
+      <RouterProvider router={router} />
     </ErrorBoundary>
   </StrictMode>
 );

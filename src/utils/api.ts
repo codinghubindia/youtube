@@ -890,77 +890,93 @@ export const getVideoComments = async (videoId: string, maxResults = 20) => {
 };
 
 // Get related videos
-export const getRelatedVideos = async (videoId: string, maxResults = 10) => {
-  if (!videoId) {
-    console.warn('No video ID provided for related videos');
-    return shuffleVideos(mockVideos).slice(0, maxResults);
+export async function getRelatedVideos(videoId: string, maxResults = 10): Promise<YouTubeVideo[]> {
+  if (!videoId || typeof videoId !== 'string' || videoId.length < 5) {
+    console.warn('Invalid video ID provided to getRelatedVideos');
+    return getMockRelatedVideos();
   }
-  
-  // Check quota before making request
-  if (trackApiUsage(ENDPOINTS.SEARCH)) {
-    console.log('Using mock data for related videos (quota limit or no API key)');
-    return shuffleVideos(mockVideos)
-      .filter(video => video.id !== videoId)
-      .slice(0, maxResults);
-  }
-  
+
   try {
-    // Validate videoId format (should be 11 characters)
-    if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
-      console.warn('Invalid video ID format:', videoId);
-      return shuffleVideos(mockVideos)
-        .filter(video => video.id !== videoId)
-        .slice(0, maxResults);
+    const apiKey = getCurrentApiKey();
+    if (!apiKey) {
+      console.warn('No valid API key available - using mock data');
+      return getMockRelatedVideos();
     }
 
-    const url = createUrl(ENDPOINTS.SEARCH, {
-      part: 'snippet',
-      relatedToVideoId: videoId,
-      type: 'video',
-      maxResults,
-    });
-    
-    const response = await fetch(url);
-    const data = await response.json();
-    
-    // Check for quota errors
-    if (data.error && data.error.code === 403) {
-      console.warn('YouTube API quota exceeded, using mock data instead');
-      handleApiKeyFailure(getCurrentApiKey());
-      return shuffleVideos(mockVideos)
-        .filter(video => video.id !== videoId)
-        .slice(0, maxResults);
-    }
-    
-    // Check for other errors
-    if (data.error) {
-      console.error('YouTube API error:', data.error);
-      // If it's a 400 error, likely invalid video ID
-      if (data.error.code === 400) {
+    const response = await fetch(
+      `${YOUTUBE_API_BASE_URL}/search?part=snippet&relatedToVideoId=${videoId}&type=video&maxResults=${maxResults}&key=${apiKey}`,
+      { method: 'GET' }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.warn('YouTube API error:', error);
+      
+      // If the video ID is invalid, use mock data
+      if (error.error?.errors?.some((e: any) => e.reason === 'invalidVideoId')) {
         console.warn('Invalid video ID or request, using mock data');
-        return shuffleVideos(mockVideos)
-          .filter(video => video.id !== videoId)
-          .slice(0, maxResults);
+        return getMockRelatedVideos();
       }
-      return [];
+      
+      throw new Error(`YouTube API error: ${error.error?.message || 'Unknown error'}`);
     }
-    
-    // Get video IDs from search results
-    const videoIds = data.items?.map((item: SearchResult) => item.id.videoId).join(',');
-    
-    if (!videoIds) {
-      console.warn('No related videos found, using mock data');
-      return shuffleVideos(mockVideos)
-        .filter(video => video.id !== videoId)
-        .slice(0, maxResults);
-    }
-    
-    // Get full video details
-    return getVideoDetails(videoIds);
-  } catch (err) {
-    console.error('Error fetching related videos:', err);
-    return shuffleVideos(mockVideos)
-      .filter(video => video.id !== videoId)
-      .slice(0, maxResults);
+
+    const data = await response.json();
+    return data.items.map(transformVideoResponse);
+  } catch (error) {
+    console.error('Error fetching related videos:', error);
+    return getMockRelatedVideos();
   }
-};
+}
+
+// Helper function to get mock related videos
+function getMockRelatedVideos(): YouTubeVideo[] {
+  return shuffleVideos(mockVideos).slice(0, 10);
+}
+
+// Transform YouTube API response to our VideoType
+function transformVideoResponse(item: any): YouTubeVideo {
+  const defaultThumbnail = {
+    url: item.snippet.thumbnails.default?.url || '',
+    width: item.snippet.thumbnails.default?.width || 120,
+    height: item.snippet.thumbnails.default?.height || 90
+  };
+
+  const mediumThumbnail = {
+    url: item.snippet.thumbnails.medium?.url || '',
+    width: item.snippet.thumbnails.medium?.width || 320,
+    height: item.snippet.thumbnails.medium?.height || 180
+  };
+
+  const highThumbnail = {
+    url: item.snippet.thumbnails.high?.url || '',
+    width: item.snippet.thumbnails.high?.width || 480,
+    height: item.snippet.thumbnails.high?.height || 360
+  };
+
+  return {
+    id: item.id.videoId,
+    snippet: {
+      title: item.snippet.title,
+      description: item.snippet.description,
+      thumbnails: {
+        default: defaultThumbnail,
+        medium: mediumThumbnail,
+        high: highThumbnail
+      },
+      channelId: item.snippet.channelId,
+      channelTitle: item.snippet.channelTitle,
+      publishedAt: item.snippet.publishedAt
+    },
+    contentDetails: {
+      duration: 'PT0S' // Will be populated by getVideoDetails
+    },
+    statistics: {
+      viewCount: '0', // Will be populated by getVideoDetails
+      likeCount: '0', // Will be populated by getVideoDetails
+      commentCount: '0' // Will be populated by getVideoDetails
+    }
+  };
+}
+
+// ... rest of the code ...

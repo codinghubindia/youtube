@@ -1,18 +1,17 @@
 // Google Gemini API integration for AI-generated content
+import { GoogleGenAI } from "@google/genai";
 import { ENV } from './env';
 
-// API base URL
-const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1';
+
+// API models
+const GEMINI_MODELS = {
+  PRIMARY: 'gemini-2.0-flash-lite',    // Main model
+  SECONDARY: 'gemini-2.0-flash',  // Fallback to main model
+  TERTIARY: 'gemini-1.5-flash'    // Last resort
+};
 
 // Array of API keys - we'll rotate through these if one fails
 const GEMINI_API_KEYS = ENV.GEMINI_API_KEYS;
-
-// Gemini models with fallback options
-const GEMINI_MODELS = {
-  PRIMARY: 'gemini-2.0-flash-lite',    // Main model
-  SECONDARY: 'gemini-2.0-flash',  // Vision model
-  TERTIARY: 'gemini-1.5-flash'    // Fallback to main model
-};
 
 // Keep track of failed keys and models
 interface ApiState {
@@ -142,139 +141,39 @@ const handleModelFailure = (model: string): boolean => {
 /**
  * Helper function to make API calls to Google Gemini
  * @param prompt The text prompt to send to the model
- * @param temperature Controls randomness (0.0-1.0)
- * @param maxTokens Maximum number of tokens to generate
  * @returns The generated text response
  */
-async function callGeminiAPI(prompt: string, temperature = 0.3, maxTokens = 2048): Promise<string> {
-  // Try all available keys and models
-  let attemptsRemaining = GEMINI_API_KEYS.length * 3; // 3 models per key
+async function callGeminiAPI(prompt: string): Promise<string> {
+  // Get API key from environment
+  const apiKey = ENV.GEMINI_API_KEYS[0]; // Use first key for simplicity
   
-  while (attemptsRemaining > 0) {
-    const apiKey = getCurrentApiKey();
-    const model = getCurrentModel();
-    
-    if (!apiKey) {
-      console.error('No working Gemini API keys available');
-      return "No working API keys available. Please add valid Gemini API keys to your environment variables.";
-    }
-    
-    try {
-      console.log(`Calling Gemini API with model: ${model}`);
-      
-      // Updated API URL and request format
-      const response = await fetch(`${GEMINI_API_BASE_URL}/${model}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: prompt
-            }]
-          }],
-          generationConfig: {
-            temperature,
-            maxOutputTokens: maxTokens,
-            topK: 40,
-            topP: 0.95
-          },
-          safetySettings: [
-            {
-              category: "HARM_CATEGORY_HATE_SPEECH",
-              threshold: "BLOCK_NONE"
-            },
-            {
-              category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-              threshold: "BLOCK_NONE"
-            },
-            {
-              category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-              threshold: "BLOCK_NONE"
-            },
-            {
-              category: "HARM_CATEGORY_HARASSMENT",
-              threshold: "BLOCK_NONE"
-            }
-          ]
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`API response error with model ${model}:`, response.status, errorText);
-        
-        // Handle specific error cases
-        if (response.status === 429) {
-          // Rate limit - mark key as failed temporarily
-          handleApiKeyFailure(apiKey);
-        } else if (response.status === 400 && errorText.includes('model')) {
-          // Model-related error
-          handleModelFailure(model);
-        } else if (response.status === 403) {
-          // Invalid API key
-          handleApiKeyFailure(apiKey);
-        } else {
-          // Other errors - try next model
-          handleModelFailure(model);
-        }
-        
-        attemptsRemaining--;
-        continue;
-      }
-
-      const data = await response.json();
-      
-      if (!data.candidates || data.candidates.length === 0) {
-        console.error(`No response generated from model ${model}`);
-        handleModelFailure(model);
-        attemptsRemaining--;
-        continue;
-      }
-
-      // Extract text from response
-      const candidate = data.candidates[0];
-      let responseText = '';
-      
-      if (candidate.content?.parts?.[0]?.text) {
-        responseText = candidate.content.parts[0].text;
-      } else if (candidate.content?.text) {
-        responseText = candidate.content.text;
-      } else if (typeof candidate.content === 'string') {
-        responseText = candidate.content;
-      }
-      
-      if (!responseText) {
-        console.error(`Empty response from model ${model}`);
-        handleModelFailure(model);
-        attemptsRemaining--;
-        continue;
-      }
-      
-      // Success! Reset failures for this key and model
-      const keyIndex = apiState.failedKeys.indexOf(apiKey);
-      if (keyIndex > -1) {
-        apiState.failedKeys.splice(keyIndex, 1);
-      }
-      
-      const modelIndex = apiState.failedModels.indexOf(model);
-      if (modelIndex > -1) {
-        apiState.failedModels.splice(modelIndex, 1);
-      }
-      
-      saveApiState();
-      return responseText;
-      
-    } catch (error) {
-      console.error(`Error calling Gemini API with model ${model}:`, error);
-      handleModelFailure(model);
-      attemptsRemaining--;
-    }
+  if (!apiKey) {
+    throw new Error('No Gemini API key available. Please add a valid API key to your environment variables.');
   }
-  
-  // All attempts failed
-  return `I encountered an issue connecting to the AI service. Please check your API key configuration and try again.`;
+
+  try {
+    // Initialize the Gemini API client
+    const genAI = new GoogleGenAI({ apiKey });
+
+    // Generate content
+    const result = await genAI.models.generateContent({
+      model: GEMINI_MODELS.PRIMARY,
+      contents: [{ text: prompt }]
+    });
+
+    // Get the response text from the first candidate
+    const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!responseText) {
+      throw new Error('Empty response from model');
+    }
+
+    return responseText;
+
+  } catch (error) {
+    console.error('Error calling Gemini API:', error);
+    throw error;
+  }
 }
 
 // Export for testing purposes
@@ -301,6 +200,43 @@ export const extractVideoId = (url: string): string | null => {
   const match = url.match(regExp);
   return (match && match[2].length === 11) ? match[2] : null;
 };
+
+/**
+ * Helper function to clean and format HTML content
+ */
+function formatHtmlContent(content: string): string {
+  return content
+    // Convert markdown-style bold to HTML
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    // Ensure code blocks are properly formatted
+    .replace(/```(\w+)?\n([\s\S]*?)\n```/g, (_, lang, code) => {
+      // Remove extra indentation while preserving code structure
+      const lines = code.split('\n');
+      const indent = lines[0].match(/^\s*/)[0];
+      const cleanedCode = lines.map((line: string) => line.replace(new RegExp(`^${indent}`), '')).join('\n');
+      return `<pre><code>${cleanedCode.trim()}</code></pre>`;
+    })
+    // Convert single backticks to inline code
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    // Ensure proper spacing around headings
+    .replace(/<h([1-6])>/g, '\n<h$1>')
+    .replace(/<\/h([1-6])>/g, '</h$1>\n')
+    // Fix list spacing
+    .replace(/<\/(ul|ol)>\s*<(ul|ol)>/g, '</$1>\n<$2>')
+    .replace(/<\/li>\s*<li>/g, '</li>\n<li>')
+    // Clean up excessive newlines
+    .replace(/\n{3,}/g, '\n\n')
+    // Fix paragraph spacing
+    .replace(/<\/p>\s*<p>/g, '</p>\n<p>')
+    // Ensure proper indentation for nested lists
+    .replace(/(<[uo]l>.*?<\/[uo]l>)/gs, list => {
+      return list.replace(/<li>/g, '  <li>');
+    })
+    // Clean up any remaining excessive whitespace
+    .replace(/\s+</g, '<')
+    .replace(/>\s+/g, '>')
+    .trim();
+}
 
 /**
  * Generate a summary of a video transcript using Google Gemini API
@@ -341,7 +277,7 @@ Content Guidelines:
 Transcript to Summarize:
 ${truncatedTranscript}`;
 
-    const summaryText = await callGeminiAPI(prompt, 0.2, 1024);
+    const summaryText = await callGeminiAPI(prompt);
     
     // Check if we got an error message back
     if (summaryText.includes('encountered an issue') || summaryText.includes('No API key configured')) {
@@ -400,132 +336,86 @@ export async function generateNotes(
 
 Task: Transform this video lecture titled "${videoTitle}"${videoUrl ? ` (${videoUrl})` : ''} into comprehensive study notes.
 
-Required Structure (using semantic HTML):
-<div class="study-notes">
-  <h1>${videoTitle}</h1>
+Required Structure:
+1. Title and Overview
+   - Brief introduction
+   - Prerequisites
+   - Learning objectives
 
-  <div class="overview">
-    <h2>Overview</h2>
-    <p>[Brief introduction explaining the topic's importance and context]</p>
-    <div class="prerequisites">
-      <h3>Prerequisites</h3>
-      <ul>
-        <li>[Required knowledge/tools]</li>
-      </ul>
-    </div>
-    <div class="objectives">
-      <h3>Learning Objectives</h3>
-      <ul>
-        <li>[What you'll learn - specific and measurable]</li>
-      </ul>
-    </div>
-  </div>
+2. Core Concepts
+   - Key concepts with definitions
+   - Examples
+   - Important terms in **bold**
 
-  <div class="main-content">
-    <h2>Core Concepts</h2>
-    <div class="concept-list">
-      [For each major concept]:
-      <div class="concept">
-        <h3>[Concept Name]</h3>
-        <p>[Clear explanation]</p>
-        [If applicable]:
-        <pre><code>[Code example]</code></pre>
-      </div>
-    </div>
+3. Implementation Details
+   - Step-by-step breakdown
+   - Code examples
+   - Important considerations
 
-    <h2>Implementation Details</h2>
-    <div class="steps">
-      [For each implementation step]:
-      <div class="step">
-        <h3>Step [number]: [step name]</h3>
-        <p>[Detailed explanation]</p>
-        [If relevant]:
-        <pre><code>[Code implementation]</code></pre>
-        <div class="note">
-          <strong>Note:</strong> [Important considerations]
-        </div>
-      </div>
-    </div>
-  </div>
+4. Practical Applications
+   - Real-world examples
+   - Industry use cases
+   - Common scenarios
 
-  <div class="practical-application">
-    <h2>Practical Applications</h2>
-    <ul>
-      <li>[Real-world use case with example]</li>
-    </ul>
-  </div>
+5. Best Practices
+   - Key recommendations
+   - Reasoning and examples
+   - Good vs bad approaches
 
-  <div class="best-practices">
-    <h2>Best Practices</h2>
-    <ul>
-      <li>[Each practice with brief explanation]</li>
-    </ul>
-  </div>
+6. Common Pitfalls
+   - Potential issues
+   - How to identify them
+   - Solutions and prevention
 
-  <div class="common-pitfalls">
-    <h2>Common Pitfalls</h2>
-    <ul>
-      <li>[Potential issue and how to avoid it]</li>
-    </ul>
-  </div>
+7. Additional Resources
+   - Documentation links
+   - Tutorials
+   - Tools and further reading
 
-  <div class="resources">
-    <h2>Additional Resources</h2>
-    <ul>
-      <li>[Related documentation, tutorials, or tools]</li>
-    </ul>
-  </div>
-</div>
-
-Formatting Guidelines:
-- Use semantic HTML for proper structure
-- Keep paragraphs concise (2-3 sentences)
-- Include code examples in <pre><code> blocks
-- Use lists for better readability
-- Bold important terms with <strong>
-- Add explanatory notes where helpful
-- Include practical examples
-- Link concepts together logically
+Format Requirements:
+1. Use semantic HTML structure (<h1>, <h2>, <h3>, <p>, <ul>, <li>, etc.)
+2. Keep paragraphs concise (2-3 sentences max)
+3. Use lists for multiple related points
+4. Include code examples in <pre><code> blocks
+5. Highlight important terms with <strong> tags
+6. Maintain consistent spacing between sections
+7. Use proper indentation for readability
 
 Here's the video transcript to analyze:
 ${truncatedTranscript}`;
 
-    const notesHtml = await callGeminiAPI(prompt, 0.3, 4096);
+    const notesHtml = await callGeminiAPI(prompt);
     
-    // Check if we got an error message back
     if (notesHtml.includes('encountered an issue') || notesHtml.includes('No API key configured')) {
       return `
-<h1>API Configuration Issue</h1>
-<p>We're unable to generate study notes because the AI service is not properly configured.</p>
-<p>Please make sure you have:</p>
-<ul>
-  <li>Added a valid Gemini API key to your environment variables</li>
-  <li>Named the environment variable VITE_GEMINI_API_KEY</li>
-</ul>
-<p>Once configured, please refresh the page and try again.</p>
-`;
+<div class="error-message">
+  <h1>API Configuration Issue</h1>
+  <p>We're unable to generate study notes because the AI service is not properly configured.</p>
+  <p>Please make sure you have:</p>
+  <ul>
+    <li>Added a valid Gemini API key to your environment variables</li>
+    <li>Named the environment variable VITE_GEMINI_API_KEY</li>
+  </ul>
+  <p>Once configured, please refresh the page and try again.</p>
+</div>`;
     }
     
-    // Check if the response is already in HTML format
-    if (notesHtml.includes('<h1>') || notesHtml.includes('<p>')) {
-      return notesHtml;
-    }
+    return formatHtmlContent(notesHtml);
     
-    // If not in HTML, convert markdown-like response to basic HTML
-    return convertToHtml(notesHtml);
   } catch (error) {
     console.error('Error generating notes:', error);
     return `
-<h1>Unable to Generate Notes</h1>
-<p>We're sorry, but we couldn't generate study notes for this video at the moment.</p>
-<p>This could be due to:</p>
-<ul>
-  <li>A temporary service disruption</li>
-  <li>Issues with processing the video transcript</li>
-  <li>API usage limitations</li>
-</ul>
-<p>Please try again later or contact support if the problem persists.</p>
-`;
+<div class="error-message">
+  <h1>Unable to Generate Notes</h1>
+  <p>We're sorry, but we couldn't generate study notes for this video at the moment.</p>
+  <p>This could be due to:</p>
+  <ul>
+    <li>A temporary service disruption</li>
+    <li>Issues with processing the video transcript</li>
+    <li>API usage limitations</li>
+  </ul>
+  <p>Please try again later or contact support if the problem persists.</p>
+</div>`;
   }
 }
 
@@ -555,83 +445,62 @@ export async function getChatResponse(
 Student Question: "${userQuestion}"
 
 Response Requirements:
-1. Format in clean HTML with semantic structure
-2. Focus on accuracy and clarity
-3. Use a conversational, encouraging tone
-4. Structure the response as follows:
+1. Direct Answer
+   - Start with a clear, concise answer to the question
+   - Use simple language and avoid jargon
+   - If code is needed, keep it minimal and well-commented
 
-<div class="chat-response">
-  <div class="answer">
-    <p class="main-point">[Direct, clear answer to the question]</p>
-  </div>
+2. Detailed Explanation
+   - Break down complex concepts
+   - Use analogies when helpful
+   - Provide step-by-step explanations
 
-  [If the concept needs explanation]:
-  <div class="explanation">
-    <h4>Let me explain further:</h4>
-    <p>[Detailed explanation with examples]</p>
-  </div>
+3. Examples
+   - Include relevant examples
+   - Use code snippets if applicable
+   - Connect to real-world scenarios
 
-  [If code is relevant]:
-  <pre><code>
-    [Code example with comments]
-  </code></pre>
+4. Key Points
+   - Highlight important concepts
+   - Use bullet points for clarity
+   - Bold key terms
 
-  [For technical concepts]:
-  <div class="technical-details">
-    <h4>Technical Details:</h4>
-    <ul>
-      <li>[Technical point 1]</li>
-      <li>[Technical point 2]</li>
-    </ul>
-  </div>
+5. Next Steps
+   - Suggest related topics
+   - Recommend resources
+   - Encourage further learning
 
-  [If helpful]:
-  <div class="examples">
-    <h4>Examples:</h4>
-    <p>[Real-world examples or applications]</p>
-  </div>
-
-  [To encourage learning]:
-  <div class="next-steps">
-    <p>[Suggestion for further learning or practice]</p>
-  </div>
-</div>
-
-Guidelines:
-- Keep explanations concise but thorough
-- Use clear examples for complex concepts
-- Include code snippets when relevant
-- Reference specific parts of the video when possible
-- If unsure, acknowledge limitations
-- Encourage further learning
+Format Requirements:
+1. Use semantic HTML (<p>, <ul>, <li>, <code>, etc.)
+2. Keep paragraphs short and focused
+3. Use lists for multiple points
+4. Format code with <pre><code> blocks
+5. Highlight terms with <strong> tags
+6. Maintain consistent spacing
+7. Use proper indentation
 
 Video Context:
 ${truncatedTranscript}`;
 
-    // Call the Gemini API
-    const responseText = await callGeminiAPI(prompt, 0.4, 2048);
+    const responseText = await callGeminiAPI(prompt);
     
-    // Check if we got an error message back
     if (responseText.includes('encountered an issue') || responseText.includes('No API key configured')) {
       return `
-<p>I'm having trouble connecting to the AI service right now. This could be due to an issue with the API key configuration.</p>
-<p>Please make sure the VITE_GEMINI_API_KEY environment variable is set with a valid API key, then refresh and try again.</p>
-`;
+<div class="error-message">
+  <p>I'm having trouble connecting to the AI service right now. This could be due to an issue with the API key configuration.</p>
+  <p>Please make sure the VITE_GEMINI_API_KEY environment variable is set with a valid API key, then refresh and try again.</p>
+</div>`;
     }
     
-    // Check if the response is already in HTML format
-    if (responseText.includes('<p>') || responseText.includes('<ul>')) {
-      return responseText;
-    }
+    return formatHtmlContent(responseText);
     
-    // If not in HTML, convert markdown-like response to basic HTML
-    return convertToHtml(responseText);
   } catch (error) {
     console.error('Error generating chat response:', error);
     return `
-<p>I'm sorry, but I encountered an error while processing your question. This could be due to a temporary service disruption or API limitation.</p>
-<p>Please try asking your question again or rephrase it. If the problem persists, you might want to try again later.</p>
-`;
+<div class="error-message">
+  <p>I'm sorry, but I encountered an error while processing your question. This could be due to a temporary service disruption or API limitation.</p>
+  <p>Please try asking your question again or rephrase it. If the problem persists, you might want to try again later.</p>
+</div>`;
   }
 }
 
