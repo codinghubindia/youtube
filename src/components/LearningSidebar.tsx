@@ -6,7 +6,6 @@ import {
   Send,
   Copy,
   AlertTriangle,
-  Check,
 } from 'lucide-react';
 import { getTranscript } from '../utils/speechmatics';
 import { isGeminiConfigured } from '../utils/env';
@@ -33,8 +32,6 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
-  const [isTestingApi, setIsTestingApi] = useState(false);
-  const [apiTestResult, setApiTestResult] = useState<{success: boolean; message: string} | null>(null);
   
   // State for content
   const [summaryPoints, setSummaryPoints] = useState<string[]>([]);
@@ -50,7 +47,6 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
   
   // State for responsive mode
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [bottomSheetHeight, setBottomSheetHeight] = useState(window.innerHeight * 0.8);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
@@ -68,6 +64,17 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Update useEffect to maintain visibility
+  useEffect(() => {
+    if (isVisible) {
+      // Ensure it's visible when isVisible prop is true
+      const sidebar = sidebarRef.current;
+      if (sidebar) {
+        sidebar.style.transform = 'translateX(0)';
+      }
+    }
+  }, [isVisible]);
 
   // Initialize content when both videoId and title are available
   useEffect(() => {
@@ -134,7 +141,7 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
                   <li><strong>Side Effect Control:</strong> useEffect provides a clear way to manage lifecycle events and side effects</li>
                   <li><strong>Code Reusability:</strong> Custom hooks allow you to extract and share stateful logic between components</li>
                   <li><strong>Reduced Boilerplate:</strong> Hooks eliminate the need for complex class syntax and lifecycle methods</li>
-                </ul>
+              </ul>
                 <p>Would you like to see some practical examples of how these hooks work?</p>` :
                 `<p>Here are the main concepts covered in the video:</p>
                 <ul>
@@ -200,6 +207,8 @@ By the end of this video, you'll have a solid foundation in React development an
   // Fetch summary with realistic educational content
   const fetchSummary = async (transcriptText: string) => {
     setIsLoadingSummary(true);
+    setSummaryPoints([]); // Clear existing summary points
+    
     try {
       const points = await generateSummary(transcriptText, videoTitle, videoId);
       setSummaryPoints(points);
@@ -217,14 +226,15 @@ By the end of this video, you'll have a solid foundation in React development an
             "Modern JavaScript features like async/await and destructuring enhance code readability and maintainability",
             "Best practices include proper component composition, state management patterns, and testing strategies"
           ]);
-          setIsLoadingSummary(false);
         }, 1500);
-        return;
+      } else {
+        // Show error message in the summary points
+        setSummaryPoints([
+          "Failed to generate summary. Please try again later."
+        ]);
       }
     } finally {
-      if (apiConfigured) {
-        setIsLoadingSummary(false);
-      }
+      setIsLoadingSummary(false);
     }
   };
   
@@ -276,8 +286,8 @@ By the end of this video, you'll have a solid foundation in React development an
 }, [dependencies]);</code></pre>
           </li>
           <li><strong>Custom Hooks:</strong> Reusable stateful logic</li>
-        </ul>
-        
+          </ul>
+          
         <h3>3. Performance Optimization</h3>
         <p>Key techniques for improving React application performance:</p>
         <ul>
@@ -295,8 +305,8 @@ By the end of this video, you'll have a solid foundation in React development an
           <li>Error handling and debugging</li>
           <li>Testing strategies</li>
           <li>Code organization and project structure</li>
-        </ol>
-        
+          </ol>
+          
         <h3>5. Additional Resources</h3>
         <p>Recommended resources for further learning:</p>
         <ul>
@@ -304,8 +314,8 @@ By the end of this video, you'll have a solid foundation in React development an
           <li>React Developer Tools</li>
           <li>Community tutorials and courses</li>
           <li>Popular React libraries and tools</li>
-        </ul>
-        `);
+          </ul>
+          `);
           setIsLoadingNotes(false);
         }, 2000);
         return;
@@ -481,7 +491,7 @@ By the end of this video, you'll have a solid foundation in React development an
               <li>First, think of it like building blocks</li>
               <li>Each piece has a specific purpose</li>
               <li>They all work together to create something amazing</li>
-            </ul>
+          </ul>
             <p>What specific part would you like me to explain further?</p>`;
         } else if (userQuestion.includes('example')) {
           mockResponse = `<p>Here's a simple example:</p>
@@ -495,7 +505,7 @@ By the end of this video, you'll have a solid foundation in React development an
               <li>This is a common topic in web development</li>
               <li>Many developers face similar challenges</li>
               <li>There are several ways to approach this</li>
-            </ul>
+          </ul>
             <p>Would you like me to go into more detail about any of these points?</p>`;
         }
         
@@ -555,223 +565,151 @@ By the end of this video, you'll have a solid foundation in React development an
     return (
       <div 
         ref={sidebarRef}
-        className={`fixed bottom-0 left-0 right-0 
-          bg-[#1a1147] text-white
-          shadow-[0_-8px_30px_rgb(0,0,0,0.12)]
-          rounded-t-xl border-t border-gray-700
-          transition-all duration-300 ease-in-out
-          ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}
-        style={{ 
-          height: isExpanded ? `${bottomSheetHeight}px` : '100px',
-          maxHeight: '90vh'
-        }}
+        className={`
+          fixed right-0 top-[56px] h-[calc(100vh-56px)] w-[400px]
+          bg-white dark:bg-zinc-900 
+          border-l border-gray-200 dark:border-zinc-700
+          shadow-lg transform transition-transform duration-300 ease-in-out
+          overflow-hidden
+          ${isVisible ? 'translate-x-0' : 'translate-x-full'}
+          ${isMobileView ? 'bottom-0 w-full h-auto' : ''}
+        `}
+        style={isMobileView ? { height: `${bottomSheetHeight}px` } : undefined}
       >
-        {/* Header with expand functionality */}
-        <div 
-          className="sticky top-0 bg-[#1a1147] z-[101] border-b border-gray-700"
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
-          <div className="w-full h-2 flex justify-center items-center py-4 cursor-pointer">
-            <div className="w-12 h-1 bg-gray-600 rounded-full"></div>
-          </div>
-          
-          <div className="flex items-center justify-between px-4 pb-4">
-            <div className="flex items-center space-x-3">
-              <button onClick={(e) => { e.stopPropagation(); window.history.back(); }} className="text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 12H5M12 19l-7-7 7-7"/>
-                </svg>
-              </button>
-              <h3 className="text-white text-lg">
-                {videoTitle || 'Chat'}
-              </h3>
-            </div>
-          </div>
-        </div>
-
-        {isExpanded && (
-          <>
-            {/* Messages container */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
-              {renderChatMessages()}
-            </div>
-
-            {/* Input area */}
-            <div className="sticky bottom-0 bg-[#1a1147] p-4 border-t border-gray-700">
-              <div className="flex items-center space-x-2">
-                <button className="p-2 text-blue-400 hover:bg-[#2b2250] rounded-full transition-colors">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-                    <line x1="9" y1="9" x2="9.01" y2="9"/>
-                    <line x1="15" y1="9" x2="15.01" y2="9"/>
-                  </svg>
-                </button>
-                
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Type a message..."
-                    className="w-full px-4 py-2 bg-[#2b2250] text-white rounded-full
-                      placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <button 
-                  onClick={handleSendMessage}
-                  disabled={!inputValue.trim() || isLoadingChat}
-                  className={`p-2 rounded-full transition-colors ${
-                    inputValue.trim() && !isLoadingChat
-                      ? 'text-[#4080ff] hover:bg-[#2b2250]'
-                      : 'text-gray-500'
-                  }`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="22" y1="2" x2="11" y2="13"/>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  // Desktop version
-  return (
-    <div className="h-full flex flex-col overflow-hidden bg-gradient-to-b from-white to-gray-50 
-      dark:from-gray-900 dark:to-gray-800 rounded-xl border border-gray-200 dark:border-gray-700
-      shadow-lg">
-      {/* Header */}
-      <div className="px-6 py-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b 
-        border-gray-200 dark:border-gray-700">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-            <Brain size={20} className="text-blue-600 dark:text-blue-400" />
-          </div>
-          <h3 className="font-semibold text-gray-800 dark:text-white text-lg">
-            Learning Assistant
-          </h3>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex px-6 pt-4">
-        {['summary', 'chat', 'notes'].map((tab) => (
+        {/* Tabs */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-zinc-700">
+          <div className="flex space-x-4">
           <button 
-            key={tab}
-            onClick={() => setActiveTab(tab as 'summary' | 'chat' | 'notes')}
-            className={`flex-1 py-3 px-4 text-sm font-medium capitalize rounded-t-lg
-              transition-colors duration-200 ${
-              activeTab === tab 
-                ? 'text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 shadow-sm' 
-                : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
-            }`}
-          >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              onClick={() => setActiveTab('chat')}
+              className={`px-3 py-2 rounded-lg transition-colors ${
+                activeTab === 'chat' 
+                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' 
+                  : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+              }`}
+            >
+              Chat
           </button>
-        ))}
-      </div>
-
-      {/* Content area */}
-      <div className="flex-1 bg-white dark:bg-gray-800 overflow-hidden rounded-t-xl shadow-inner">
-        <div className="h-full overflow-y-auto px-6 py-4">
-          {/* API warning */}
-          {!apiConfigured && (
-            <div className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-sm p-3 rounded-lg mb-3 flex items-start">
-              <AlertTriangle size={16} className="mr-2 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium">Gemini API key not configured</p>
-                <p className="mt-1 text-xs">Please add your Gemini API key in the settings to use the learning features.</p>
-                <button 
-                  onClick={testGeminiAPI} 
-                  className="mt-2 px-3 py-1 bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-100 rounded text-xs font-medium inline-flex items-center"
-                  disabled={isTestingApi}
-                >
-                  {isTestingApi ? (
-                    <>
-                      <Loader2 size={12} className="mr-1 animate-spin" />
-                      Testing...
-                    </>
-                  ) : (
-                    'Test API Connection'
-                  )}
-                </button>
-                {apiTestResult && (
-                  <div className={`mt-2 text-xs ${apiTestResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    <div className="flex items-center">
-                      {apiTestResult.success ? (
-                        <Check size={12} className="mr-1" />
-                      ) : (
-                        <AlertTriangle size={12} className="mr-1" />
-                      )}
-                      {apiTestResult.message}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <button 
+                onClick={() => setActiveTab('summary')}
+              className={`px-3 py-2 rounded-lg transition-colors ${
+                  activeTab === 'summary' 
+                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' 
+                  : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+                }`}
+              >
+                Summary
+              </button>
+              <button 
+                onClick={() => setActiveTab('notes')}
+              className={`px-3 py-2 rounded-lg transition-colors ${
+                  activeTab === 'notes' 
+                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' 
+                  : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+                }`}
+              >
+                Notes
+              </button>
+          </div>
             </div>
-          )}
-
+            
+        {/* Content area */}
+        <div className="h-[calc(100%-56px)] overflow-y-auto">
+          {/* API warning */}
+              {!apiConfigured && (
+            <div className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-sm p-3 rounded-lg mb-3 flex items-start">
+                  <AlertTriangle size={16} className="mr-2 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium">Gemini API key not configured</p>
+                    <p className="mt-1 text-xs">Please add your Gemini API key in the settings to use the learning features.</p>
+                    <button 
+                  onClick={testGeminiAPI} 
+                      className="mt-2 px-3 py-1 bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-100 rounded text-xs font-medium inline-flex items-center"
+                >
+                  Test API Connection
+                    </button>
+                  </div>
+                </div>
+              )}
+              
           {/* Dynamic content based on active tab */}
           <div className="h-full overflow-y-auto">
-            {activeTab === 'summary' && (
+              {activeTab === 'summary' && (
               <div className="h-full overflow-y-auto pb-16">
-                {isLoadingSummary ? (
-                  <div className="flex flex-col items-center justify-center h-40">
-                    <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Generating summary...</p>
-                  </div>
-                ) : (
-                  <div>
-                    <h3 className="text-sm font-semibold mb-3 text-gray-800 dark:text-white">Key Points:</h3>
-                    <ul className="space-y-3">
-                      {summaryPoints.length > 0 ? (
-                        summaryPoints.map((point, index) => (
-                          <li 
-                            key={index} 
-                            className="flex items-start bg-gray-50 dark:bg-gray-800 p-3 rounded-lg"
-                          >
-                            <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium mr-2 flex-shrink-0 mt-0.5">
-                              {index + 1}
-                            </span>
-                            <p className="text-sm text-gray-800 dark:text-gray-200">{point}</p>
-                          </li>
-                        ))
-                      ) : (
-                        <li className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
-                          No summary available yet. Try refreshing.
-                        </li>
+                  {isLoadingSummary ? (
+                    <div className="flex flex-col items-center justify-center h-40">
+                      <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Generating summary...</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Key Points:</h3>
+                        <button 
+                          onClick={() => fetchSummary(transcript)}
+                          className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+                          </svg>
+                          Refresh
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {summaryPoints.length > 0 ? (
+                          summaryPoints.map((point, index) => (
+                            <div 
+                              key={index} 
+                              className={`flex items-start p-3 rounded-lg ${
+                                point.includes("Failed to generate summary")
+                                  ? 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                                  : 'bg-gray-50 dark:bg-gray-800'
+                              }`}
+                            >
+                              {point.includes("Failed to generate summary") ? (
+                                <div className="flex items-start">
+                                  <AlertTriangle size={16} className="mr-2 flex-shrink-0 mt-0.5" />
+                                  <p className="text-sm">{point}</p>
+                                </div>
+                              ) : (
+                                <>
+                                  <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium mr-2 flex-shrink-0 mt-0.5">
+                                    {index + 1}
+                                  </span>
+                                  <p className="text-sm text-gray-800 dark:text-gray-200">{point}</p>
+                                </>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
+                            No summary available yet. Click refresh to generate a new summary.
+                          </div>
+                        )}
+                      </div>
+                      
+                      {summaryPoints.length > 0 && !summaryPoints[0].includes("Failed to generate summary") && (
+                        <button 
+                          onClick={() => handleCopy(summaryPoints.join('\n\n'))}
+                          className="mt-4 w-full flex items-center justify-center py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                          <Copy size={14} className="mr-2" />
+                          Copy Summary
+                        </button>
                       )}
-                    </ul>
-                    
-                    {summaryPoints.length > 0 && (
-                      <button 
-                        onClick={() => handleCopy(summaryPoints.join('\n\n'))}
-                        className="mt-4 w-full flex items-center justify-center py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300"
-                      >
-                        <Copy size={14} className="mr-2" />
-                        Copy Summary
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'chat' && (
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {activeTab === 'chat' && (
               <div className="h-full flex flex-col relative">
-                <div 
-                  ref={chatContainerRef}
+                  <div 
+                    ref={chatContainerRef}
                   className="flex-1 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700"
                 >
                   {renderChatMessages()}
-                </div>
+                        </div>
                 
                 {/* Chat input */}
                 <div className="w-full sticky bottom-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md pt-3 pb-4 px-4 border-t border-gray-100 dark:border-gray-800">
@@ -789,20 +727,20 @@ By the end of this video, you'll have a solid foundation in React development an
                       </svg>
                     </button>
 
-                    <input
-                      ref={inputRef}
-                      type="text"
-                      value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      onKeyPress={handleKeyPress}
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyPress={handleKeyPress}
                       placeholder="Ask me anything about the video..."
                       className="w-full pl-12 pr-24 py-3 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white rounded-xl
                         border border-gray-200 dark:border-gray-700
                         focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-400/50 focus:border-blue-500 dark:focus:border-blue-400
                         placeholder-gray-500 dark:placeholder-gray-400
                         transition-all duration-200"
-                      disabled={isLoadingChat}
-                    />
+                        disabled={isLoadingChat}
+                      />
 
                     <div className="absolute right-2 flex items-center gap-2">
                       {/* Character count */}
@@ -859,25 +797,25 @@ By the end of this video, you'll have a solid foundation in React development an
                       onClick={() => setInputValue("What are the best practices for this?")}
                     >
                       ✨ Best practices
-                    </button>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {activeTab === 'notes' && (
+              )}
+              
+              {activeTab === 'notes' && (
               <div className="h-full overflow-y-auto">
-                {isLoadingNotes ? (
-                  <div className="flex flex-col items-center justify-center h-40">
-                    <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Generating notes...</p>
-                  </div>
-                ) : (
-                  <div className="mb-20">
-                    <h3 className="text-sm font-semibold mb-3 mt-3 text-gray-800 dark:text-white">Study Notes:</h3>
-                    
-                    {notes ? (
-                      <div 
+                  {isLoadingNotes ? (
+                    <div className="flex flex-col items-center justify-center h-40">
+                      <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Generating notes...</p>
+                    </div>
+                  ) : (
+                    <div className="mb-20">
+                      <h3 className="text-sm font-semibold mb-3 mt-3 text-gray-800 dark:text-white">Study Notes:</h3>
+                      
+                      {notes ? (
+                        <div 
                         className={`prose prose-sm max-w-none dark:prose-invert 
                           bg-gray-50 dark:bg-gray-800 p-4 rounded-lg
                           prose-headings:mt-4 prose-headings:mb-2 
@@ -887,27 +825,304 @@ By the end of this video, you'll have a solid foundation in React development an
                           prose-strong:text-blue-700 dark:prose-strong:text-blue-300
                           prose-code:text-purple-700 dark:prose-code:text-purple-300
                           prose-pre:bg-gray-100 dark:prose-pre:bg-gray-800/50`}
-                        dangerouslySetInnerHTML={{ __html: notes }}
-                      />
-                    ) : (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
-                        No notes available yet. Try refreshing.
-                      </p>
-                    )}
-                    
-                    {notes && (
-                      <button 
-                        onClick={() => handleCopy(notes.replace(/<[^>]*>/g, ''))}
-                        className="mt-4 w-full flex items-center justify-center py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300"
+                          dangerouslySetInnerHTML={{ __html: notes }}
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
+                          No notes available yet. Try refreshing.
+                        </p>
+                      )}
+                      
+                      {notes && (
+                        <button 
+                          onClick={() => handleCopy(notes.replace(/<[^>]*>/g, ''))}
+                          className="mt-4 w-full flex items-center justify-center py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                          <Copy size={14} className="mr-2" />
+                          Copy Notes
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+      </div>
+    );
+  }
+
+  // Desktop version
+  return (
+    <div className="h-full flex flex-col overflow-hidden bg-gradient-to-b from-white to-gray-50 
+      dark:from-gray-900 dark:to-gray-800 rounded-xl border border-gray-200 dark:border-gray-700
+      shadow-lg">
+      {/* Header */}
+      <div className="px-6 py-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b 
+        border-gray-200 dark:border-gray-700">
+        <div className="flex items-center space-x-3">
+          <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+            <Brain size={20} className="text-blue-600 dark:text-blue-400" />
+          </div>
+          <h3 className="font-semibold text-gray-800 dark:text-white text-lg">
+            Learning Assistant
+          </h3>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex px-6 pt-4">
+        {['summary', 'chat', 'notes'].map((tab) => (
+        <button 
+            key={tab}
+            onClick={() => setActiveTab(tab as 'summary' | 'chat' | 'notes')}
+            className={`flex-1 py-3 px-4 text-sm font-medium capitalize rounded-t-lg
+              transition-colors duration-200 ${
+              activeTab === tab 
+                ? 'text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 shadow-sm' 
+              : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
+          }`}
+        >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+        </button>
+        ))}
+      </div>
+
+      {/* Content area */}
+      <div className="flex-1 bg-white dark:bg-gray-800 overflow-hidden rounded-t-xl shadow-inner">
+        <div className="h-full overflow-y-auto px-6 py-4">
+          {/* API warning */}
+        {!apiConfigured && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-sm p-3 rounded-lg mb-3 flex items-start">
+            <AlertTriangle size={16} className="mr-2 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">Gemini API key not configured</p>
+              <p className="mt-1 text-xs">Please add your Gemini API key in the settings to use the learning features.</p>
+              <button 
+                  onClick={testGeminiAPI} 
+                className="mt-2 px-3 py-1 bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-100 rounded text-xs font-medium inline-flex items-center"
+                >
+                  Test API Connection
+              </button>
+            </div>
+          </div>
+        )}
+
+          {/* Dynamic content based on active tab */}
+          <div className="h-full overflow-y-auto">
+        {activeTab === 'summary' && (
+          <div className="h-full overflow-y-auto pb-16">
+            {isLoadingSummary ? (
+              <div className="flex flex-col items-center justify-center h-40">
+                <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">Generating summary...</p>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Key Points:</h3>
+                  <button 
+                    onClick={() => fetchSummary(transcript)}
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+                    </svg>
+                    Refresh
+                  </button>
+                </div>
+                
+                <div className="space-y-3">
+                  {summaryPoints.length > 0 ? (
+                    summaryPoints.map((point, index) => (
+                      <div 
+                        key={index} 
+                        className={`flex items-start p-3 rounded-lg ${
+                          point.includes("Failed to generate summary")
+                            ? 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                            : 'bg-gray-50 dark:bg-gray-800'
+                        }`}
                       >
-                        <Copy size={14} className="mr-2" />
-                        Copy Notes
-                      </button>
-                    )}
-                  </div>
+                        {point.includes("Failed to generate summary") ? (
+                          <div className="flex items-start">
+                            <AlertTriangle size={16} className="mr-2 flex-shrink-0 mt-0.5" />
+                            <p className="text-sm">{point}</p>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium mr-2 flex-shrink-0 mt-0.5">
+                              {index + 1}
+                            </span>
+                            <p className="text-sm text-gray-800 dark:text-gray-200">{point}</p>
+                          </>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
+                      No summary available yet. Click refresh to generate a new summary.
+                    </div>
+                  )}
+                </div>
+                
+                {summaryPoints.length > 0 && !summaryPoints[0].includes("Failed to generate summary") && (
+                  <button 
+                    onClick={() => handleCopy(summaryPoints.join('\n\n'))}
+                    className="mt-4 w-full flex items-center justify-center py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    <Copy size={14} className="mr-2" />
+                    Copy Summary
+                  </button>
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'chat' && (
+          <div className="h-full flex flex-col relative">
+            <div 
+              ref={chatContainerRef}
+                  className="flex-1 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700"
+                >
+                  {renderChatMessages()}
+                  </div>
+                
+                {/* Chat input */}
+                <div className="w-full sticky bottom-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md pt-3 pb-4 px-4 border-t border-gray-100 dark:border-gray-800">
+                  <div className="relative flex items-center">
+                    {/* Emoji button - can be implemented later */}
+                    <button 
+                      className="absolute left-4 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                      onClick={() => {/* Add emoji picker later */}}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                        <line x1="9" y1="9" x2="9.01" y2="9"/>
+                        <line x1="15" y1="9" x2="15.01" y2="9"/>
+                      </svg>
+                    </button>
+
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                      placeholder="Ask me anything about the video..."
+                      className="w-full pl-12 pr-24 py-3 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white rounded-xl
+                        border border-gray-200 dark:border-gray-700
+                        focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-400/50 focus:border-blue-500 dark:focus:border-blue-400
+                        placeholder-gray-500 dark:placeholder-gray-400
+                        transition-all duration-200"
+                  disabled={isLoadingChat}
+                />
+
+                    <div className="absolute right-2 flex items-center gap-2">
+                      {/* Character count */}
+                      {inputValue.length > 0 && (
+                        <span className="text-xs text-gray-400 dark:text-gray-500 mr-2">
+                          {inputValue.length}/500
+                        </span>
+                      )}
+
+                      {/* Send button */}
+                <button 
+                  onClick={handleSendMessage}
+                  disabled={!inputValue.trim() || isLoadingChat}
+                        className={`p-2 rounded-lg transition-all duration-200 flex items-center gap-2
+                          ${inputValue.trim() && !isLoadingChat
+                            ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95 shadow-lg shadow-blue-600/25'
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                          }`}
+                      >
+                        {isLoadingChat ? (
+                          <>
+                            <Loader2 size={18} className="animate-spin" />
+                            <span className="text-sm font-medium">Thinking...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send size={18} />
+                            <span className="text-sm font-medium">Send</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Quick suggestions */}
+                  <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
+                    <button 
+                      className="flex-shrink-0 px-3 py-1 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 
+                        rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => setInputValue("Can you explain this in simpler terms?")}
+                    >
+                      🤔 Explain simpler
+                    </button>
+                    <button 
+                      className="flex-shrink-0 px-3 py-1 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 
+                        rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => setInputValue("Can you show me an example?")}
+                    >
+                      💡 Show example
+                    </button>
+                    <button 
+                      className="flex-shrink-0 px-3 py-1 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 
+                        rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => setInputValue("What are the best practices for this?")}
+                    >
+                      ✨ Best practices
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'notes' && (
+              <div className="h-full overflow-y-auto">
+            {isLoadingNotes ? (
+              <div className="flex flex-col items-center justify-center h-40">
+                <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">Generating notes...</p>
+              </div>
+            ) : (
+              <div className="mb-20">
+                <h3 className="text-sm font-semibold mb-3 mt-3 text-gray-800 dark:text-white">Study Notes:</h3>
+                
+                {notes ? (
+                  <div 
+                        className={`prose prose-sm max-w-none dark:prose-invert 
+                          bg-gray-50 dark:bg-gray-800 p-4 rounded-lg
+                          prose-headings:mt-4 prose-headings:mb-2 
+                          prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1
+                          prose-headings:text-gray-900 dark:prose-headings:text-white
+                          prose-p:text-gray-800 dark:prose-p:text-gray-200
+                          prose-strong:text-blue-700 dark:prose-strong:text-blue-300
+                          prose-code:text-purple-700 dark:prose-code:text-purple-300
+                          prose-pre:bg-gray-100 dark:prose-pre:bg-gray-800/50`}
+                    dangerouslySetInnerHTML={{ __html: notes }}
+                  />
+                ) : (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
+                    No notes available yet. Try refreshing.
+                  </p>
+                )}
+                
+                {notes && (
+                  <button 
+                    onClick={() => handleCopy(notes.replace(/<[^>]*>/g, ''))}
+                    className="mt-4 w-full flex items-center justify-center py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    <Copy size={14} className="mr-2" />
+                    Copy Notes
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
           </div>
         </div>
       </div>

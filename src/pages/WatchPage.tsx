@@ -36,7 +36,7 @@ const WatchPage: React.FC = () => {
   const [watchDuration, setWatchDuration] = useState(0);
   const [watchProgressInterval, setWatchProgressInterval] = useState<number | null>(null);
   const [showComments, setShowComments] = useState(false);
-  const [chatMaximized, setChatMaximized] = useState(false);
+  const [chatMaximized, setChatMaximized] = useState(true);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   // Handle responsive behavior with learning mode
@@ -463,7 +463,7 @@ const WatchPage: React.FC = () => {
       {learningMode && sidebarVisible && (
         <div 
           className={`fixed ${isMobileView ? 'inset-x-0 bottom-0 z-50' : 
-            chatMaximized ? 'top-16 right-4 bottom-4 w-[450px] z-40' : 'bottom-4 right-4 w-[350px] h-[450px] z-40'}`}
+            chatMaximized ? 'top-16 right-4 bottom-4 w-[450px] z-40' : 'bottom-4 right-4 w-[350px] z-40'}`}
         >
           <div className={`bg-white dark:bg-gray-900 rounded-t-xl ${!isMobileView && 'rounded-b-xl'} shadow-xl flex flex-col h-full overflow-hidden border border-blue-200 dark:border-blue-800`}>
             {/* Header with maximize and close buttons */}

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Brain, BookOpen, Search, History, Star, Settings, X, Play, Sparkles, BookCheck, MessageSquare } from 'lucide-react';
-import { useLearningMode } from '../context/LearningModeContext';
+import { Brain, BookOpen, History, Play, Sparkles, BookCheck, MessageSquare } from 'lucide-react';
 
 interface HomeLearningGuideProps {
   onClose: () => void;
@@ -125,12 +124,6 @@ const HomeLearningGuide: React.FC<HomeLearningGuideProps> = ({ onClose }) => {
           <Brain className="w-6 h-6 text-blue-600" />
           <h2 className="text-lg font-semibold dark:text-white">Learning Guide</h2>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
-        >
-          <X className="w-5 h-5 dark:text-white" />
-        </button>
       </div>
 
       {/* Navigation */}
