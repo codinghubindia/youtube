@@ -25,6 +25,16 @@ interface Message {
   timestamp?: Date;
 }
 
+// Add new styles at the top
+const MIN_BOTTOM_SHEET_HEIGHT = 100;
+const MAX_BOTTOM_SHEET_HEIGHT = window.innerHeight * 0.9;
+
+interface DragState {
+  startY: number;
+  currentHeight: number;
+  isDragging: boolean;
+}
+
 const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, isVisible }) => {
   // State for the current active tab
   const [activeTab, setActiveTab] = useState<'summary' | 'chat' | 'notes'>('chat');
@@ -51,6 +61,13 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
   const [bottomSheetHeight, setBottomSheetHeight] = useState(window.innerHeight * 0.8);
 
+  // Add new state for drag handling
+  const [dragState, setDragState] = useState<DragState>({
+    startY: 0,
+    currentHeight: window.innerHeight * 0.7,
+    isDragging: false
+  });
+
   // Check for mobile view on resize with cleanup
   useEffect(() => {
     let mounted = true;
@@ -63,11 +80,13 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
       
       // Adjust bottom sheet size when resizing
       if (mobileView) {
-        setBottomSheetHeight(Math.min(500, window.innerHeight * 0.7));
+        setBottomSheetHeight(Math.min(MAX_BOTTOM_SHEET_HEIGHT, window.innerHeight * 0.7));
       }
     };
     
     window.addEventListener('resize', handleResize);
+    handleResize(); // Call initially
+    
     return () => {
       mounted = false;
       window.removeEventListener('resize', handleResize);
@@ -243,19 +262,6 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
     }
   };
   
-  // Handle tab change with loading states
-  const handleTabChange = (tab: 'summary' | 'chat' | 'notes') => {
-    setActiveTab(tab);
-    
-    // If content isn't loaded yet, show loading state
-    if (tab === 'summary' && summaryPoints.length === 0) {
-      setIsLoadingSummary(true);
-    }
-    if (tab === 'notes' && !notes) {
-      setIsLoadingNotes(true);
-    }
-  };
-
   // Scroll chat to bottom when messages change with cleanup
   useEffect(() => {
     const chatContainer = chatContainerRef.current;
@@ -285,8 +291,8 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
     return Object.entries(messageGroups).map(([date, groupMessages]) => (
       <div key={date} className="space-y-4">
         <div className="flex justify-center">
-          <div className="bg-[#2b2250] rounded-full px-3 py-1">
-            <span className="text-xs text-gray-400">
+          <div className="bg-gray-100 dark:bg-[#2b2250] rounded-full px-3 py-1 border border-gray-200/60 dark:border-gray-700/60">
+            <span className="text-xs text-gray-600 dark:text-gray-400">
               {new Date(date).toLocaleDateString(undefined, { 
                 weekday: 'long', 
                 month: 'long', 
@@ -301,14 +307,16 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
             <div className={`flex items-start space-x-2 ${message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
               {/* Avatar */}
               <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 
-                ${message.role === 'user' ? 'bg-blue-500' : 'bg-[#2b2250]'}`}>
+                ${message.role === 'user' 
+                  ? 'bg-blue-500 shadow-sm' 
+                  : 'bg-gray-100 dark:bg-[#2b2250] border border-gray-200/60 dark:border-gray-700/60'}`}>
                 {message.role === 'user' ? (
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
                   </svg>
                 ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500 dark:text-blue-400">
                     <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2M12 17l-5-5 1.41-1.41L12 14.17l4.59-4.58L18 11l-6 6z"/>
                   </svg>
                 )}
@@ -316,17 +324,17 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
 
               {/* Message content */}
               <div className={`relative max-w-[70%] ${message.role === 'user' ? 'ml-auto' : ''}`}>
-                <div className={`rounded-2xl px-4 py-2 ${
+                <div className={`rounded-2xl px-4 py-2 shadow-sm ${
                   message.role === 'user'
-                    ? 'bg-[#4080ff] text-white'
-                    : 'bg-[#2b2250] text-gray-200'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white dark:bg-[#2b2250] text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700/60'
                 }`}>
                   {renderMessageContent(message.content)}
                 </div>
 
                 {/* Message metadata */}
-                <div className="flex items-center justify-end space-x-1 mt-1">
-                  <span className="text-xs text-gray-400">
+                <div className={`flex items-center space-x-1 mt-1 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
                     {new Date().toLocaleTimeString([], { 
                       hour: '2-digit', 
                       minute: '2-digit',
@@ -334,7 +342,7 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
                     })}
                   </span>
                   {message.role === 'user' && message.received && (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500 dark:text-blue-400">
                       <polyline points="20 6 9 17 4 12"/>
                     </svg>
                   )}
@@ -359,21 +367,22 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
             prose-p:my-1 prose-ul:my-1 prose-ol:my-1 
             prose-li:my-0.5 prose-pre:my-1
             prose-code:text-inherit
-            prose-strong:text-white/90
-            prose-headings:text-white
-            prose-a:text-blue-400"
+            prose-strong:text-inherit
+            prose-headings:text-inherit
+            prose-a:text-blue-200 dark:prose-a:text-blue-400
+            [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
           dangerouslySetInnerHTML={{ __html: content }}
         />
       );
     }
 
-    // If not HTML, render as before with line breaks and formatting
+    // If not HTML, render as before with improved styling
     return (
       <div className="text-sm whitespace-pre-wrap break-words">
         {content.split('\n').map((line, i) => {
           if (line.startsWith('```')) {
             return (
-              <pre key={i} className="bg-[#1a1147] rounded-lg p-2 my-2 overflow-x-auto">
+              <pre key={i} className="bg-black/5 dark:bg-black/20 rounded-lg p-2 my-2 overflow-x-auto">
                 <code>{line.replace(/```/g, '').trim()}</code>
               </pre>
             );
@@ -511,269 +520,218 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
     return groups;
   };
 
+  // Add touch event handlers for bottom sheet
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isMobileView) return;
+    
+    const touch = e.touches[0];
+    setDragState({
+      startY: touch.clientY,
+      currentHeight: bottomSheetHeight,
+      isDragging: true
+    });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!dragState.isDragging || !isMobileView) return;
+    
+    const touch = e.touches[0];
+    const deltaY = dragState.startY - touch.clientY;
+    const newHeight = Math.max(
+      MIN_BOTTOM_SHEET_HEIGHT,
+      Math.min(MAX_BOTTOM_SHEET_HEIGHT, dragState.currentHeight + deltaY)
+    );
+    
+    setBottomSheetHeight(newHeight);
+  };
+
+  const handleTouchEnd = () => {
+    if (!isMobileView) return;
+    
+    setDragState(prev => ({ ...prev, isDragging: false }));
+    
+    // Snap to predefined heights
+    if (bottomSheetHeight < window.innerHeight * 0.3) {
+      setBottomSheetHeight(MIN_BOTTOM_SHEET_HEIGHT);
+    } else if (bottomSheetHeight > window.innerHeight * 0.7) {
+      setBottomSheetHeight(MAX_BOTTOM_SHEET_HEIGHT);
+    } else {
+      setBottomSheetHeight(window.innerHeight * 0.5);
+    }
+  };
+
+  // Update the sidebar styles for better theme support
+  const sidebarStyles: React.CSSProperties = {
+    position: 'fixed',
+    right: 0,
+    backgroundColor: 'var(--background)',
+    zIndex: 50,
+    ...(isMobileView
+      ? {
+          bottom: 0,
+          width: '100%',
+          height: `${bottomSheetHeight}px`,
+          borderTopLeftRadius: '20px',
+          borderTopRightRadius: '20px',
+          boxShadow: 'var(--shadow-lg)',
+          transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
+          transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+        }
+      : {
+          top: 0,
+          width: '400px',
+          height: '100%',
+          transform: isVisible ? 'translateX(0)' : 'translateX(100%)',
+          transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+        })
+  };
+
   // Mobile version
   if (isMobileView) {
     return (
       <div 
         ref={sidebarRef}
-        className={`
-          fixed bottom-4 right-4 
-          bg-white dark:bg-zinc-900 
-          border border-gray-200 dark:border-zinc-700
-          shadow-xl rounded-2xl
-          transform transition-all duration-300 ease-in-out
-          ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}
-          z-50 overflow-hidden
-          max-w-[calc(100vw-2rem)] w-[400px]
-        `}
-        style={{ 
-          height: `${bottomSheetHeight}px`,
-          maxHeight: 'calc(100vh - 6rem)'
-        }}
+        style={sidebarStyles}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className="flex flex-col bg-background dark:bg-background-dark"
       >
-        {/* Drag handle for floating window */}
-        <div 
-          className="w-full flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-zinc-800 cursor-move touch-none"
-          onTouchStart={(e) => {
-            const touch = e.touches[0];
-            const startY = touch.clientY;
-            const startHeight = bottomSheetHeight;
-            const element = sidebarRef.current;
-            if (!element) return;
-
-            const startRect = element.getBoundingClientRect();
-            let lastY = startY;
-            let lastX = touch.clientX;
-
-            const handleTouchMove = (e: TouchEvent) => {
-              const touch = e.touches[0];
-              const deltaY = lastY - touch.clientY;
-              const deltaX = lastX - touch.clientX;
-              lastY = touch.clientY;
-              lastX = touch.clientX;
-
-              // Update position
-              const newTop = element.offsetTop - deltaY;
-              const newLeft = element.offsetLeft - deltaX;
-
-              // Keep within viewport bounds
-              const maxTop = window.innerHeight - element.offsetHeight;
-              const maxLeft = window.innerWidth - element.offsetWidth;
-
-              element.style.top = `${Math.min(Math.max(0, newTop), maxTop)}px`;
-              element.style.left = `${Math.min(Math.max(0, newLeft), maxLeft)}px`;
-              element.style.right = 'auto';
-              element.style.bottom = 'auto';
-
-              // Adjust height if needed
-              const newHeight = Math.min(
-                Math.max(startHeight - deltaY, window.innerHeight * 0.3),
-                window.innerHeight * 0.8
-              );
-              setBottomSheetHeight(newHeight);
-            };
-
-            const handleTouchEnd = () => {
-              document.removeEventListener('touchmove', handleTouchMove);
-              document.removeEventListener('touchend', handleTouchEnd);
-            };
-
-            document.addEventListener('touchmove', handleTouchMove, { passive: false });
-            document.addEventListener('touchend', handleTouchEnd);
-          }}
-        >
-          <div className="flex items-center space-x-2">
-            <div className="w-12 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Learning Assistant
-            </span>
-          </div>
-          <button
-            onClick={() => {
-              if (sidebarRef.current) {
-                sidebarRef.current.style.top = '';
-                sidebarRef.current.style.left = '';
-                sidebarRef.current.style.right = '1rem';
-                sidebarRef.current.style.bottom = '1rem';
-              }
-            }}
-            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 dark:text-gray-400">
-              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
-            </svg>
-          </button>
+        {/* Drag handle for mobile */}
+        <div className="w-full flex justify-center p-2 cursor-grab touch-pan-y bg-secondary/10 dark:bg-secondary-dark/10">
+          <div className="w-12 h-1.5 bg-secondary/20 dark:bg-secondary-dark/20 rounded-full" />
         </div>
-
+        
         {/* Tabs */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-zinc-700">
-          <div className="flex space-x-2">
-            {['chat', 'summary', 'notes'].map((tab) => (
-              <button 
-                key={tab}
-                onClick={() => handleTabChange(tab as 'summary' | 'chat' | 'notes')}
-                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                  activeTab === tab 
-                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 font-medium' 
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
+        <div className="flex border-b border-border dark:border-border-dark bg-background dark:bg-background-dark px-2 pt-2">
+          {(['chat', 'summary', 'notes'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`
+                flex-1 px-4 py-2.5 text-sm font-medium rounded-t-lg mx-1
+                transition-colors duration-200
+                ${activeTab === tab 
+                  ? 'bg-primary dark:bg-primary-dark text-white dark:text-white border-b-2 border-primary dark:border-primary-dark' 
+                  : 'text-secondary dark:text-secondary-dark hover:bg-secondary/10 dark:hover:bg-secondary-dark/10'}
+              `}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
         </div>
-            
-        {/* Content area with proper mobile scrolling */}
-        <div className="flex-1 overflow-hidden" style={{ height: `calc(${bottomSheetHeight}px - 88px)` }}>
-          <div className="h-full overflow-y-auto overscroll-contain pb-safe">
-            {/* API warning */}
-            {!apiConfigured && (
-              <div className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-sm p-3 m-4 rounded-lg flex items-start">
-                <AlertTriangle size={16} className="mr-2 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium">Gemini API key not configured</p>
-                  <p className="mt-1 text-xs">Using mock data for demonstration purposes.</p>
-                  <button 
-                    onClick={testGeminiAPI} 
-                    className="mt-2 px-3 py-1 bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-100 rounded text-xs font-medium inline-flex items-center"
+
+        {/* Content area */}
+        <div className="flex-1 overflow-y-auto p-4 bg-background dark:bg-background-dark">
+          {activeTab === 'chat' && (
+            <div 
+              ref={chatContainerRef}
+              className="flex flex-col space-y-4 pb-20"
+            >
+              {renderChatMessages()}
+            </div>
+          )}
+          {activeTab === 'summary' && (
+            <div className="space-y-4">
+              {isLoadingSummary ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary dark:text-primary-dark" />
+                </div>
+              ) : (
+                summaryPoints.map((point, index) => (
+                  <div 
+                    key={index}
+                    className="p-4 bg-secondary/10 dark:bg-secondary-dark/10 rounded-lg border border-border dark:border-border-dark"
                   >
-                    Test API Connection
-                  </button>
-                </div>
-              </div>
-            )}
-              
-            {/* Dynamic content based on active tab */}
-            <div className="p-4">
-              {activeTab === 'summary' && (
-                <div className="space-y-3">
-                  {isLoadingSummary ? (
-                    <div className="flex flex-col items-center justify-center h-32">
-                      <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Generating summary...</p>
+                    <div className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary dark:bg-primary-dark text-white flex items-center justify-center text-sm">
+                        {index + 1}
+                      </span>
+                      <p className="text-primary dark:text-primary-dark">{point}</p>
                     </div>
-                  ) : (
-                    <>
-                      {summaryPoints.map((point, index) => (
-                        <div 
-                          key={index} 
-                          className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg flex items-start"
-                        >
-                          <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium mr-2 flex-shrink-0 mt-0.5">
-                            {index + 1}
-                          </span>
-                          <p className="text-sm text-gray-800 dark:text-gray-200">{point}</p>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'chat' && (
-                <div className="space-y-4">
-                  {messages.map((message, index) => (
-                    <div 
-                      key={index}
-                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div 
-                        className={`max-w-[85%] rounded-lg p-3 ${
-                          message.role === 'user'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 dark:bg-gray-800'
-                        }`}
-                      >
-                        {renderMessageContent(message.content)}
-                      </div>
-                    </div>
-                  ))}
-
-                  {isLoadingChat && (
-                    <div className="flex justify-start">
-                      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
-                        <div className="flex space-x-2">
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'notes' && (
-                <div>
-                  {isLoadingNotes ? (
-                    <div className="flex flex-col items-center justify-center h-32">
-                      <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400 mb-2" />
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Generating notes...</p>
-                    </div>
-                  ) : (
-                    <div 
-                      className="prose prose-sm max-w-none dark:prose-invert"
-                      dangerouslySetInnerHTML={{ __html: notes }}
-                    />
-                  )}
-                </div>
+                  </div>
+                ))
               )}
             </div>
-          </div>
-
-          {/* Chat input for mobile */}
-          {activeTab === 'chat' && (
-            <div className="sticky bottom-0 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 p-4 pb-safe">
-              <div className="relative flex items-center">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Ask me anything about the video..."
-                  className="w-full pl-4 pr-12 py-2 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white rounded-full
-                    border border-gray-200 dark:border-gray-700
-                    focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-400/50
-                    placeholder-gray-500 dark:placeholder-gray-400"
-                  disabled={isLoadingChat}
-                />
-                <button
-                  onClick={handleSendMessage}
-                  disabled={isLoadingChat || !inputValue.trim()}
-                  className="absolute right-2 p-2 text-blue-600 dark:text-blue-400 disabled:opacity-50"
-                >
-                  <Send size={18} />
-                </button>
-              </div>
+          )}
+          {activeTab === 'notes' && (
+            <div className="prose prose-sm dark:prose-invert max-w-none">
+              {isLoadingNotes ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary dark:text-primary-dark" />
+                </div>
+              ) : (
+                <div className="bg-secondary/10 dark:bg-secondary-dark/10 rounded-lg border border-border dark:border-border-dark p-4">
+                  <div dangerouslySetInnerHTML={{ __html: notes }} />
+                </div>
+              )}
             </div>
           )}
         </div>
+
+        {/* Chat input */}
+        {activeTab === 'chat' && (
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-background dark:bg-background-dark border-t border-border dark:border-border-dark">
+            <div className="flex items-center gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Ask a question about the video..."
+                className="flex-1 px-4 py-3 rounded-full bg-secondary/10 dark:bg-secondary-dark/10 
+                  border border-border dark:text-black dark:border-border-dark
+                  text-primary dark:text-primary-dark
+                  placeholder-secondary dark:placeholder-secondary-dark
+                  focus:outline-none focus:ring-2 focus:ring-primary/20 dark:focus:ring-primary-dark/20
+                  focus:border-primary dark:focus:border-primary-dark"
+                disabled={isLoadingChat}
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={isLoadingChat || !inputValue.trim()}
+                className={`
+                  p-3 rounded-full flex items-center justify-center
+                  ${isLoadingChat || !inputValue.trim() 
+                    ? 'bg-secondary/20 dark:bg-secondary-dark/20 cursor-not-allowed' 
+                    : 'bg-primary dark:bg-primary-dark text-white hover:bg-primary-dark dark:hover:bg-primary'}
+                  transition-colors duration-200
+                `}
+              >
+                {isLoadingChat ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Send className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   // Desktop version
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-gradient-to-b from-white to-gray-50 
-      dark:from-gray-900 dark:to-gray-800 rounded-xl border border-gray-200 dark:border-gray-700
+    <div className="h-full flex flex-col overflow-hidden bg-gradient-to-b from-white to-gray-50/50 
+      dark:from-gray-900 dark:to-gray-800 rounded-xl border border-gray-200/60 dark:border-gray-700
       shadow-lg">
       {/* Header */}
-      <div className="px-6 py-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b 
-        border-gray-200 dark:border-gray-700">
+      <div className="px-6 py-4 bg-white/90 dark:bg-gray-900/80 backdrop-blur-sm border-b 
+        border-gray-100 dark:border-gray-700">
         <div className="flex items-center space-x-3">
-          <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+          <div className="p-2 bg-blue-50 dark:bg-blue-900 rounded-lg">
             <Brain size={20} className="text-blue-600 dark:text-blue-400" />
           </div>
-          <h3 className="font-semibold text-gray-800 dark:text-white text-lg">
+          <h3 className="font-semibold text-gray-900 dark:text-white text-lg">
             Learning Assistant
           </h3>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex px-6 pt-4">
+      <div className="flex px-6 pt-4 bg-gray-50/50 dark:bg-gray-900">
         {['summary', 'chat', 'notes'].map((tab) => (
         <button 
             key={tab}
@@ -781,9 +739,9 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
             className={`flex-1 py-3 px-4 text-sm font-medium capitalize rounded-t-lg
               transition-colors duration-200 ${
               activeTab === tab 
-                ? 'text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 shadow-sm' 
-              : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
-          }`}
+                ? 'text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 shadow-sm border-t border-x border-gray-100 dark:border-gray-700' 
+                : 'text-gray-700 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
+            }`}
         >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
         </button>
@@ -842,7 +800,7 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
                         className={`flex items-start p-3 rounded-lg ${
                           point.includes("Failed to generate summary")
                             ? 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200'
-                            : 'bg-gray-50 dark:bg-gray-800'
+                            : 'bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700'
                         }`}
                       >
                         {point.includes("Failed to generate summary") ? (
@@ -891,7 +849,7 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
                   </div>
                 
                 {/* Chat input */}
-                <div className="w-full sticky bottom-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md pt-3 pb-4 px-4 border-t border-gray-100 dark:border-gray-800">
+                <div className="w-full sticky bottom-0 bg-white/90 dark:bg-gray-900/80 backdrop-blur-md pt-3 pb-4 px-4 border-t border-gray-100 dark:border-gray-800">
                   <div className="relative flex items-center">
                     {/* Emoji button - can be implemented later */}
                     <button 
@@ -913,9 +871,9 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
                       placeholder="Ask me anything about the video..."
-                      className="w-full pl-12 pr-24 py-3 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white rounded-xl
+                      className="w-full pl-12 pr-24 py-3 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl
                         border border-gray-200 dark:border-gray-700
-                        focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-400/50 focus:border-blue-500 dark:focus:border-blue-400
+                        focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/30 focus:border-blue-400 dark:focus:border-blue-400
                         placeholder-gray-500 dark:placeholder-gray-400
                         transition-all duration-200"
                   disabled={isLoadingChat}
@@ -957,22 +915,22 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
                   {/* Quick suggestions */}
                   <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
                     <button 
-                      className="flex-shrink-0 px-3 py-1 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 
-                        rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                      className="flex-shrink-0 px-3 py-1 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 
+                        rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200/60 dark:border-gray-700"
                       onClick={() => setInputValue("Can you explain this in simpler terms?")}
                     >
                       🤔 Explain simpler
                     </button>
                     <button 
-                      className="flex-shrink-0 px-3 py-1 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 
-                        rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                      className="flex-shrink-0 px-3 py-1 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 
+                        rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200/60 dark:border-gray-700"
                       onClick={() => setInputValue("Can you show me an example?")}
                     >
                       💡 Show example
                     </button>
                     <button 
-                      className="flex-shrink-0 px-3 py-1 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 
-                        rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                      className="flex-shrink-0 px-3 py-1 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 
+                        rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200/60 dark:border-gray-700"
                       onClick={() => setInputValue("What are the best practices for this?")}
                     >
                       ✨ Best practices
@@ -996,7 +954,7 @@ const LearningSidebar: React.FC<LearningSidebarProps> = ({ videoId, videoTitle, 
                 {notes ? (
                   <div 
                         className={`prose prose-sm max-w-none dark:prose-invert 
-                          bg-gray-50 dark:bg-gray-800 p-4 rounded-lg
+                          bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-100 dark:border-gray-700
                           prose-headings:mt-4 prose-headings:mb-2 
                           prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1
                           prose-headings:text-gray-900 dark:prose-headings:text-white

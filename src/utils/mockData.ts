@@ -719,32 +719,6 @@ export const mockVideos: YouTubeVideo[] = [
     durationInSeconds: 30641 // 8h 30m 41s
   },
   {
-    id: 'responsive-design',
-    snippet: {
-      title: 'Introduction To Responsive Web Design - HTML & CSS Tutorial',
-      description: 'This HTML & CSS tutorial teaches you how to create a fully responsive website that looks great on all devices.',
-      thumbnails: {
-        default: { url: 'https://i.ytimg.com/vi/CmuaJOGh4JE/default.jpg', width: 120, height: 90 },
-        medium: { url: 'https://i.ytimg.com/vi/CmuaJOGh4JE/mqdefault.jpg', width: 320, height: 180 },
-        high: { url: 'https://i.ytimg.com/vi/CmuaJOGh4JE/hqdefault.jpg', width: 480, height: 360 }
-      },
-      channelTitle: 'Web Dev Simplified',
-      channelId: 'UCFbNIlppjAuEX4znoulh0Cw',
-      publishedAt: '2022-04-25T13:00:12Z',
-      tags: ['responsive', 'web design', 'html', 'css', 'tutorial', 'responsive design', 'mobile-friendly', 'education', 'media queries']
-    },
-    contentDetails: {
-      duration: 'PT17M53S'
-    },
-    statistics: {
-      viewCount: '312756',
-      likeCount: '13827',
-      commentCount: '645'
-    },
-    isEducational: true,
-    durationInSeconds: 1073 // 17m 53s
-  },
-  {
     id: 'flexbox-tutorial',
     snippet: {
       title: 'Flexbox Tutorial (CSS): Real Layout Examples',

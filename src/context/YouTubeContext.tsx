@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
-import { YouTubeVideo, getPopularVideos, searchVideos, resetQuotaTracking, getEducationalVideos } from '../utils/api';
+import { YouTubeVideo, getPopularVideos, searchVideos, resetQuotaTracking, getEducationalVideos, getPersonalizedRecommendations } from '../utils/api';
+import { parseISO8601Duration, isEducationalContent } from '../utils/utils';
 
 interface MiniPlayerState {
   active: boolean;
@@ -107,7 +108,21 @@ export const YouTubeProvider: React.FC<{ children: ReactNode }> = ({ children })
         response = await searchVideos(searchQuery, pageSize);
       } else if (educational) {
         setIsSearchActive(() => false);
+        // First try to get educational videos
         response = await getEducationalVideos(pageSize);
+        
+        // If no educational videos found, try getting personalized recommendations
+        if (!response.videos || response.videos.length === 0) {
+          const recommendedVideos = await getPersonalizedRecommendations(pageSize);
+          response = { videos: recommendedVideos, nextPageToken: null };
+        }
+        
+        // Filter videos to ensure they meet educational criteria
+        if (response.videos) {
+          response.videos = response.videos.filter(video => {
+            return video.isEducational || isEducationalContent(video);
+          });
+        }
       } else {
         setIsSearchActive(() => false);
         response = await getPopularVideos(pageSize);
@@ -116,7 +131,11 @@ export const YouTubeProvider: React.FC<{ children: ReactNode }> = ({ children })
       const { videos: fetchedVideos, nextPageToken: newPageToken } = response;
       
       if (!fetchedVideos || fetchedVideos.length === 0) {
-        setError('No videos found. Please try again later.');
+        if (educational) {
+          setError('No educational videos found. Try adjusting your search or disabling learning mode.');
+        } else {
+          setError('No videos found. Please try again later.');
+        }
         setHasMoreVideos(() => false);
         return;
       }
@@ -142,11 +161,16 @@ export const YouTubeProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
     } catch (err) {
       console.error('Error fetching videos:', err);
-      setError('Failed to fetch videos. Using mock data instead.');
+      setError('Failed to fetch videos. Please try again later.');
       setHasMoreVideos(() => false);
       
-      const { videos: mockData } = await getEducationalVideos(12);
-      setVideos(() => mockData);
+      // Only use mock data as a last resort
+      if (educational) {
+        const { videos: mockData } = await getEducationalVideos(12);
+        if (mockData && mockData.length > 0) {
+          setVideos(() => mockData);
+        }
+      }
     } finally {
       setLoading(() => false);
     }

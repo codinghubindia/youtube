@@ -5,7 +5,7 @@ import VideoCard from '../components/VideoCard';
 import HomeLearningGuide from '../components/HomeLearningGuide';
 import { formatDuration } from '../utils/formatUtils';
 import { Loader2, BookOpen, AlertCircle, Brain, ChevronDown, ChevronUp, X } from 'lucide-react';
-import { parseISO8601Duration } from '../utils/mockData';
+import { parseISO8601Duration, isEducationalContent } from '../utils/utils';
 import { isYouTubeConfigured } from '../utils/env';
 import { VideoType } from '../data/videos';
 import { YouTubeVideo } from '../utils/api';
@@ -17,6 +17,7 @@ const HomePage: React.FC = () => {
   const [isWideScreen, setIsWideScreen] = useState(window.innerWidth >= 1024);
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
   const [chatMaximized, setChatMaximized] = useState(false);
+  const [errorState, setError] = useState<string | null>(null);
 
   // Handle responsive behavior
   useEffect(() => {
@@ -31,9 +32,9 @@ const HomePage: React.FC = () => {
 
   // Convert YouTubeVideo to VideoType
   const convertToVideoType = (video: YouTubeVideo): VideoType => ({
-    id: video.id,
+    id: video.id?.videoId || video.id, // Handle both search results and direct video IDs
     title: video.snippet.title,
-    thumbnailUrl: video.snippet.thumbnails.high.url,
+    thumbnailUrl: video.snippet.thumbnails.high?.url || video.snippet.thumbnails.medium?.url || video.snippet.thumbnails.default?.url,
     channel: {
       name: video.snippet.channelTitle,
       avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(video.snippet.channelTitle)}&background=random`,
@@ -48,15 +49,20 @@ const HomePage: React.FC = () => {
   const processedVideos = React.useMemo(() => {
     if (!learningMode) return videos;
 
-    // In learning mode, filter videos:
-    // 1. Must be educational
-    // 2. Duration must be <= 5 minutes (300 seconds)
-    return videos.filter(video => {
-      // Calculate duration in seconds if not already calculated
-      const durationInSeconds = video.durationInSeconds || 
-        (video.contentDetails?.duration ? parseISO8601Duration(video.contentDetails.duration) : 0);
-      
-      return video.isEducational && durationInSeconds <= 300;
+    // First deduplicate videos based on ID
+    const uniqueVideos = videos.reduce((acc, current) => {
+      const exists = acc.find(video => video.id === current.id);
+      if (!exists) {
+        acc.push(current);
+      }
+      return acc;
+    }, [] as YouTubeVideo[]);
+
+    // Then filter for educational content
+    return uniqueVideos.filter(video => {
+      // Check if video is educational based on tags, title, and description
+      const isEducational = video.isEducational || isEducationalContent(video);
+      return isEducational;
     });
   }, [videos, learningMode]);
 
@@ -65,13 +71,19 @@ const HomePage: React.FC = () => {
     let mounted = true;
 
     const loadVideos = async () => {
-      // Check if YouTube API is configured
-      if (!isYouTubeConfigured()) {
-        console.warn('YouTube API is not configured - using mock data');
-      }
-      // Fetch educational videos only if learning mode is enabled
-      if (mounted) {
-        await fetchVideos(false, 1, learningMode);
+      try {
+        // Check if YouTube API is configured
+        if (!isYouTubeConfigured()) {
+          console.warn('YouTube API is not configured - using mock data');
+        }
+        
+        // Fetch videos with proper error handling
+        if (mounted) {
+          await fetchVideos(false, 1, learningMode);
+        }
+      } catch (error) {
+        console.error('Error loading videos:', error);
+        setError('Failed to load videos. Please try again.');
       }
     };
 
@@ -110,12 +122,12 @@ const HomePage: React.FC = () => {
     };
   }, [loading, loadMoreVideos, learningMode]);
 
-  if (error) {
+  if (errorState) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] p-8">
         <AlertCircle className="text-youtube-red mb-4" size={48} />
         <h2 className="text-xl font-semibold mb-2 dark:text-white">Error Loading Videos</h2>
-        <p className="text-gray-600 dark:text-gray-400 text-center mb-4">{error}</p>
+        <p className="text-gray-600 dark:text-gray-400 text-center mb-4">{errorState}</p>
       </div>
     );
   }
@@ -134,9 +146,16 @@ const HomePage: React.FC = () => {
 
           {/* Videos grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {processedVideos.map((video) => (
-              <VideoCard key={video.id} video={convertToVideoType(video)} />
-            ))}
+            {processedVideos.map((video, index) => {
+              // Create a unique key combining video ID and index
+              const uniqueKey = `${video.id}-${index}`;
+              return (
+                <VideoCard 
+                  key={uniqueKey} 
+                  video={convertToVideoType(video)} 
+                />
+              );
+            })}
           </div>
 
           {/* No videos found message */}
